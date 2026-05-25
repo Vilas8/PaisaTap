@@ -36,11 +36,16 @@ services:
         value: paisatap_secret
 
   # 2. Frontend Static Site
-  - type: static
+  - type: web
     name: paisatap-frontend
+    runtime: static
     plan: free
     buildCommand: cd frontend && npm install --legacy-peer-deps && npm run build
-    publishDir: frontend/dist
+    staticPublishPath: ./frontend/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
       - key: VITE_API_URL
         fromService:
