@@ -11,9 +11,13 @@ const WEBAPP_URL = process.env.WEBAPP_URL || 'http://localhost:5173'; // Default
 
 // Telegram strictly requires HTTPS for WebApp inline keyboard buttons.
 // We use a secure dummy fallback if the user is running locally with http:// to prevent Telegram 400 Bad Request crash.
-const webAppUrlForTelegram = WEBAPP_URL.startsWith('https://') 
+const rawWebAppUrl = WEBAPP_URL.startsWith('https://') 
   ? WEBAPP_URL 
   : 'https://google.com';
+
+const webAppUrlForTelegram = rawWebAppUrl.endsWith('/') 
+  ? rawWebAppUrl.slice(0, -1) 
+  : rawWebAppUrl;
 
 if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_TELEGRAM_BOT_TOKEN') {
   console.warn('Telegram Bot Token not configured. Bot engine will remain offline.');

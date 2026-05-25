@@ -218,7 +218,7 @@ export const Home: React.FC = () => {
     <div>
       {/* User Status Bar */}
       <div className="glass-card" style={{ marginTop: '20px', marginBottom: '10px', padding: '16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'between', alignItems: 'center', width: '100%' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div className="user-avatar">
               {user?.first_name?.charAt(0).toUpperCase() || 'P'}

@@ -31,7 +31,9 @@ router.get('/stats', async (req: AuthenticatedRequest, res: Response) => {
       rewardDistributed: false,
     });
 
-    const referralLink = `https://t.me/${process.env.BOT_USERNAME || 'PaisaTapBot'}?start=ref_${tgUser.telegramId}`;
+    const rawBotUsername = process.env.BOT_USERNAME || 'PaisaTapBot';
+    const botUsername = rawBotUsername.startsWith('@') ? rawBotUsername.substring(1) : rawBotUsername;
+    const referralLink = `https://t.me/${botUsername}?start=ref_${tgUser.telegramId}`;
     const referralEarnings = activeReferralsCount * 40; // Referrer earns ₹40 per active referral
 
     // Get list of referred users
