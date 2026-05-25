@@ -37,7 +37,6 @@ services:
   - type: web
     name: paisatap-frontend
     runtime: static
-    plan: free
     buildCommand: cd frontend && npm install --legacy-peer-deps && npm run build
     staticPublishPath: ./frontend/dist
     routes:
