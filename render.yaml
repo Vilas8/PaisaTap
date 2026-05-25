@@ -36,9 +36,8 @@ services:
         value: paisatap_secret
 
   # 2. Frontend Static Site
-  - type: web
+  - type: static
     name: paisatap-frontend
-    env: static
     plan: free
     buildCommand: cd frontend && npm install --legacy-peer-deps && npm run build
     publishDir: frontend/dist
