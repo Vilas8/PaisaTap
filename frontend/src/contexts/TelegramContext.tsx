@@ -29,19 +29,24 @@ export const TelegramProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isDevMode, setIsDevMode] = useState(false);
 
   useEffect(() => {
-    // 1. Tell Telegram the WebApp is ready to show
+    // Read the WebApp SDK directly from window to avoid module load-order race conditions
+    const tg = (window as any).Telegram?.WebApp;
+
     try {
-      WebApp.ready();
-      WebApp.expand(); // Expand to full screen height
-      
-      // Parse User Details if available
-      if (WebApp.initDataUnsafe && WebApp.initDataUnsafe.user) {
-        setUser(WebApp.initDataUnsafe.user as TelegramUser);
-        setInitData(WebApp.initData);
+      if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+        console.log('Telegram WebApp detected successfully.');
+        setUser(tg.initDataUnsafe.user as TelegramUser);
+        setInitData(tg.initData);
         setIsDevMode(false);
+        try {
+          tg.ready();
+          tg.expand();
+        } catch (err) {
+          console.warn('Error expanding WebApp:', err);
+        }
       } else {
         // Fallback for local browser development
-        console.warn('Running outside Telegram context. Activating dev mode.');
+        console.warn('Running outside Telegram context or initData missing. Activating dev mode.');
         setIsDevMode(true);
         
         // Retrieve or generate persistent dev user credentials
@@ -62,7 +67,6 @@ export const TelegramProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       console.warn('Failed to initialize Telegram WebApp SDK. Falling back to dev mode:', e);
       setIsDevMode(true);
       
-      // Retrieve or generate persistent dev user credentials
       const cachedDevId = localStorage.getItem('dev_user_id') || Math.floor(100000 + Math.random() * 900000).toString();
       const cachedDevName = localStorage.getItem('dev_user_name') || 'dev_master';
       localStorage.setItem('dev_user_id', cachedDevId);
@@ -98,11 +102,12 @@ export const TelegramProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const triggerHaptic = (type: 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error') => {
     try {
-      if (WebApp.HapticFeedback) {
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg && tg.HapticFeedback) {
         if (type === 'success' || type === 'warning' || type === 'error') {
-          WebApp.HapticFeedback.notificationOccurred(type);
+          tg.HapticFeedback.notificationOccurred(type);
         } else {
-          WebApp.HapticFeedback.impactOccurred(type);
+          tg.HapticFeedback.impactOccurred(type);
         }
       }
     } catch (e) {
@@ -113,7 +118,7 @@ export const TelegramProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   return (
     <TelegramContext.Provider
       value={{
-        tg: WebApp,
+        tg: (window as any).Telegram?.WebApp || WebApp,
         user,
         initData,
         isReady,
