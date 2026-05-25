@@ -94,11 +94,49 @@ async function seedDefaultTasks() {
     }
 }
 // Database Connection and Server Boot
+function sanitizeMongoUri(uri) {
+    try {
+        const match = uri.match(/^(mongodb(?:\+srv)?:\/\/)(.*)$/);
+        if (!match)
+            return uri;
+        const [, protocol, rest] = match;
+        const slashIdx = rest.indexOf('/');
+        const hostSegment = slashIdx !== -1 ? rest.substring(0, slashIdx) : rest;
+        const dbAndOptions = slashIdx !== -1 ? rest.substring(slashIdx) : '';
+        const lastAtIdx = hostSegment.lastIndexOf('@');
+        if (lastAtIdx === -1)
+            return uri;
+        const credentials = hostSegment.substring(0, lastAtIdx);
+        const host = hostSegment.substring(lastAtIdx + 1);
+        const colonIdx = credentials.indexOf(':');
+        if (colonIdx === -1)
+            return uri;
+        const username = credentials.substring(0, colonIdx);
+        const password = credentials.substring(colonIdx + 1);
+        const safeEncode = (str) => {
+            try {
+                const decoded = decodeURIComponent(str);
+                return encodeURIComponent(decoded);
+            }
+            catch {
+                return encodeURIComponent(str);
+            }
+        };
+        return `${protocol}${safeEncode(username)}:${safeEncode(password)}@${host}${dbAndOptions}`;
+    }
+    catch (error) {
+        console.error('Error sanitizing MongoDB URI:', error);
+        return uri;
+    }
+}
+const sanitizedUri = sanitizeMongoUri(MONGODB_URI);
 mongoose_1.default
-    .connect(MONGODB_URI)
+    .connect(sanitizedUri)
     .then(async () => {
     console.log('Connected to MongoDB.');
     await seedDefaultTasks();
+    // Launch Telegram bot concurrently inside the same process
+    require('./bot');
     app.listen(PORT, () => {
         console.log(`PaisaTap backend running on port ${PORT}`);
     });
