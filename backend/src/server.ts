@@ -145,7 +145,11 @@ mongoose
     await seedDefaultTasks();
     
     // Launch Telegram bot concurrently inside the same process
-    require('./bot');
+    if (process.env.DISABLE_BOT !== 'true') {
+      require('./bot');
+    } else {
+      console.log('Telegram Bot engine disabled via DISABLE_BOT flag.');
+    }
 
     app.listen(PORT, () => {
       console.log(`PaisaTap backend running on port ${PORT}`);
