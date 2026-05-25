@@ -28,10 +28,8 @@ services:
         description: "The administrator password for the PaisaTap Admin Panel"
       - key: RAZORPAY_KEY_ID
         sync: false
-        value: ""
       - key: RAZORPAY_KEY_SECRET
         sync: false
-        value: ""
       - key: RAZORPAY_WEBHOOK_SECRET
         value: paisatap_secret
 
