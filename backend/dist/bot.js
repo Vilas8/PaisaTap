@@ -72,6 +72,25 @@ else {
                 }
             }
         }
+        else {
+            // Update username/names if changed in Telegram
+            let modified = false;
+            if (tgUser.username && user.username !== tgUser.username) {
+                user.username = tgUser.username;
+                modified = true;
+            }
+            if (tgUser.first_name && user.firstName !== tgUser.first_name) {
+                user.firstName = tgUser.first_name;
+                modified = true;
+            }
+            if (tgUser.last_name && user.lastName !== tgUser.last_name) {
+                user.lastName = tgUser.last_name;
+                modified = true;
+            }
+            if (modified) {
+                await user.save();
+            }
+        }
         return user;
     }
     // Command: /start (onboarding & referrals)

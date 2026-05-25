@@ -70,7 +70,13 @@ export const Home: React.FC = () => {
 
     return () => {
       clearInterval(energyInterval);
-      if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+      if (tapTimerRef.current) {
+        clearTimeout(tapTimerRef.current);
+      }
+      // Sync any remaining taps immediately
+      if (pendingTapsRef.current > 0) {
+        syncTapsWithBackend();
+      }
     };
   }, []);
 
@@ -122,11 +128,13 @@ export const Home: React.FC = () => {
     // Add to pending batch
     pendingTapsRef.current += 1;
 
-    // Reset sync timer (de-bounce backend save to 1.5s)
-    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
-    tapTimerRef.current = setTimeout(() => {
-      syncTapsWithBackend();
-    }, 1500);
+    // Sync taps periodically (throttle to every 1 second)
+    if (!tapTimerRef.current) {
+      tapTimerRef.current = setTimeout(() => {
+        syncTapsWithBackend();
+        tapTimerRef.current = null;
+      }, 1000);
+    }
   };
 
   // Sync accumulated taps with Express backend
