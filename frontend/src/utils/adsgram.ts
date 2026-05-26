@@ -271,10 +271,14 @@ export const AdsgramService = {
    */
   showAd: async (blockId: string): Promise<void> => {
     const isDevMode = localStorage.getItem('is_dev_mode') === 'true';
+    
+    // Validate blockId format: must be a numeric string or start with 'int-' followed by digits.
+    // If it's a placeholder/dummy key like 'block_energy_refill', we fall back to the Mock player.
+    const isValidFormat = /^\d+$/.test(blockId) || /^int-\d+$/.test(blockId);
 
-    // 1. If in dev mode, immediately fallback to our gorgeous mock player
-    if (isDevMode) {
-      console.log('Adsgram: Dev mode active. Playing mock rewarded video...');
+    // If in dev mode OR blockId format is invalid, immediately fallback to our gorgeous mock player
+    if (isDevMode || !isValidFormat) {
+      console.log(`Adsgram: Using mock player (devMode: ${isDevMode}, isValidFormat: ${isValidFormat}, blockId: ${blockId})`);
       return showMockAdModal();
     }
 
