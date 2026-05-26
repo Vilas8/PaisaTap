@@ -39,7 +39,7 @@ async function ensureUserExists(ctx, referrerId) {
     if (!user) {
         console.log(`Bot registering new user: ${tgUser.username || tgUser.id}`);
         // Prevent self-referral
-        const validReferrerId = referrerId && referrerId !== tgUser.id.toString() ? referrerId : undefined;
+        const validReferrerId = referrerId && referrerId !== tgUser.id.toString() ? String(referrerId).trim() : undefined;
         user = new user_model_1.User({
             telegramId: tgUser.id.toString(),
             username: tgUser.username,
@@ -75,6 +75,45 @@ async function ensureUserExists(ctx, referrerId) {
             }
         }
     }
+    else {
+        // If user exists but has no referrer, and a new referrer is provided, link them
+        const cleanReferrerId = referrerId ? String(referrerId).trim() : '';
+        if (!user.referredBy && cleanReferrerId && cleanReferrerId !== tgUser.id.toString()) {
+            const referrer = await user_model_1.User.findOne({ telegramId: cleanReferrerId });
+            if (referrer) {
+                user.referredBy = cleanReferrerId;
+                // Double check if a referral relation already exists to prevent duplicate entries
+                const existingReferral = await referral_model_1.Referral.findOne({ referredId: tgUser.id.toString() });
+                if (!existingReferral) {
+                    const referral = new referral_model_1.Referral({
+                        referrerId: cleanReferrerId,
+                        referredId: tgUser.id.toString(),
+                        rewardDistributed: false,
+                    });
+                    await referral.save();
+                    referrer.referralCount += 1;
+                    await referrer.save();
+                }
+            }
+        }
+        // Update username/names if changed in Telegram
+        let modified = false;
+        if (tgUser.username && user.username !== tgUser.username) {
+            user.username = tgUser.username;
+            modified = true;
+        }
+        if (tgUser.first_name && user.firstName !== tgUser.first_name) {
+            user.firstName = tgUser.first_name;
+            modified = true;
+        }
+        if (tgUser.last_name && user.lastName !== tgUser.last_name) {
+            user.lastName = tgUser.last_name;
+            modified = true;
+        }
+        if (modified) {
+            await user.save();
+        }
+    }
     return user;
 }
 // Command: /start (onboarding & referrals)
@@ -82,8 +121,8 @@ bot.start(async (ctx) => {
     try {
         const payload = ctx.payload; // e.g. ref_12345
         let referrerId;
-        if (payload && payload.startsWith('ref_')) {
-            referrerId = payload.substring(4);
+        if (payload) {
+            referrerId = payload.startsWith('ref_') ? payload.substring(4) : payload;
         }
         const user = await ensureUserExists(ctx, referrerId);
         const welcomeMsg = `👋 *Welcome to PaisaTap, ${ctx.from.first_name}!*\n\n` +

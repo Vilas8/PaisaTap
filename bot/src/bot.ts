@@ -44,7 +44,7 @@ async function ensureUserExists(ctx: any, referrerId?: string): Promise<IUser> {
     console.log(`Bot registering new user: ${tgUser.username || tgUser.id}`);
     
     // Prevent self-referral
-    const validReferrerId = referrerId && referrerId !== tgUser.id.toString() ? referrerId : undefined;
+    const validReferrerId = referrerId && referrerId !== tgUser.id.toString() ? String(referrerId).trim() : undefined;
 
     user = new User({
       telegramId: tgUser.id.toString(),
@@ -87,6 +87,47 @@ async function ensureUserExists(ctx: any, referrerId?: string): Promise<IUser> {
         }
       }
     }
+  } else {
+    // If user exists but has no referrer, and a new referrer is provided, link them
+    const cleanReferrerId = referrerId ? String(referrerId).trim() : '';
+    if (!user.referredBy && cleanReferrerId && cleanReferrerId !== tgUser.id.toString()) {
+      const referrer = await User.findOne({ telegramId: cleanReferrerId });
+      if (referrer) {
+        user.referredBy = cleanReferrerId;
+        
+        // Double check if a referral relation already exists to prevent duplicate entries
+        const existingReferral = await Referral.findOne({ referredId: tgUser.id.toString() });
+        if (!existingReferral) {
+          const referral = new Referral({
+            referrerId: cleanReferrerId,
+            referredId: tgUser.id.toString(),
+            rewardDistributed: false,
+          });
+          await referral.save();
+
+          referrer.referralCount += 1;
+          await referrer.save();
+        }
+      }
+    }
+
+    // Update username/names if changed in Telegram
+    let modified = false;
+    if (tgUser.username && user.username !== tgUser.username) {
+      user.username = tgUser.username;
+      modified = true;
+    }
+    if (tgUser.first_name && user.firstName !== tgUser.first_name) {
+      user.firstName = tgUser.first_name;
+      modified = true;
+    }
+    if (tgUser.last_name && user.lastName !== tgUser.last_name) {
+      user.lastName = tgUser.last_name;
+      modified = true;
+    }
+    if (modified) {
+      await user.save();
+    }
   }
 
   return user;
@@ -98,8 +139,8 @@ bot.start(async (ctx) => {
     const payload = ctx.payload; // e.g. ref_12345
     let referrerId: string | undefined;
 
-    if (payload && payload.startsWith('ref_')) {
-      referrerId = payload.substring(4);
+    if (payload) {
+      referrerId = payload.startsWith('ref_') ? payload.substring(4) : payload;
     }
 
     const user = await ensureUserExists(ctx, referrerId);

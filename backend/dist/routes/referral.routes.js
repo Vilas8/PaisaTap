@@ -36,11 +36,12 @@ router.get('/stats', async (req, res) => {
         // Find usernames / names of referred users
         const referredUsers = await user_model_1.User.find({ telegramId: { $in: referredIds } }, { telegramId: 1, username: 1, firstName: 1, lastName: 1, level: 1 });
         const referralList = referrals.map(ref => {
-            const match = referredUsers.find(u => u.telegramId === ref.referredId);
+            const match = referredUsers.find(u => String(u.telegramId).trim() === String(ref.referredId).trim());
+            const fullName = match ? `${match.firstName || ''} ${match.lastName || ''}`.trim() : '';
             return {
                 telegramId: ref.referredId,
-                username: match?.username || 'Anonymous',
-                name: match ? `${match.firstName || ''} ${match.lastName || ''}`.trim() : 'Anonymous',
+                username: match?.username || '',
+                name: fullName || match?.username || `User ${ref.referredId}`,
                 level: match?.level || 1,
                 status: ref.rewardDistributed ? 'completed' : 'pending',
                 createdAt: ref.createdAt,

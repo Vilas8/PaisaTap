@@ -45,10 +45,11 @@ router.post('/telegram', authMiddleware, async (req: AuthenticatedRequest, res: 
 
       // If referred by someone, record the referral relation
       if (referrerId) {
-        const referrerExists = await User.findOne({ telegramId: referrerId });
+        const cleanReferrerId = String(referrerId).trim();
+        const referrerExists = await User.findOne({ telegramId: cleanReferrerId });
         if (referrerExists) {
           const referral = new Referral({
-            referrerId,
+            referrerId: cleanReferrerId,
             referredId: tgUser.telegramId,
             rewardDistributed: false,
           });
@@ -60,8 +61,31 @@ router.post('/telegram', authMiddleware, async (req: AuthenticatedRequest, res: 
         }
       }
     } else {
-      // Update username/names if changed in Telegram
       let modified = false;
+      // If user exists but has no referrer, and a new referrer is provided, link them
+      const cleanReferrerId = referredBy ? String(referredBy).trim() : '';
+      if (!user.referredBy && cleanReferrerId && cleanReferrerId !== tgUser.telegramId) {
+        const referrerExists = await User.findOne({ telegramId: cleanReferrerId });
+        if (referrerExists) {
+          user.referredBy = cleanReferrerId;
+          modified = true;
+
+          // Double check if a referral relation already exists to prevent duplicate entries
+          const existingReferral = await Referral.findOne({ referredId: tgUser.telegramId });
+          if (!existingReferral) {
+            const referral = new Referral({
+              referrerId: cleanReferrerId,
+              referredId: tgUser.telegramId,
+              rewardDistributed: false,
+            });
+            await referral.save();
+
+            referrerExists.referralCount += 1;
+            await referrerExists.save();
+          }
+        }
+      }
+      // Update username/names if changed in Telegram
       if (tgUser.username && user.username !== tgUser.username) {
         user.username = tgUser.username;
         modified = true;

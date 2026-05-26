@@ -47,11 +47,12 @@ router.get('/stats', async (req: AuthenticatedRequest, res: Response) => {
     );
 
     const referralList = referrals.map(ref => {
-      const match = referredUsers.find(u => u.telegramId === ref.referredId);
+      const match = referredUsers.find(u => String(u.telegramId).trim() === String(ref.referredId).trim());
+      const fullName = match ? `${match.firstName || ''} ${match.lastName || ''}`.trim() : '';
       return {
         telegramId: ref.referredId,
-        username: match?.username || 'Anonymous',
-        name: match ? `${match.firstName || ''} ${match.lastName || ''}`.trim() : 'Anonymous',
+        username: match?.username || '',
+        name: fullName || match?.username || `User ${ref.referredId}`,
         level: match?.level || 1,
         status: ref.rewardDistributed ? 'completed' : 'pending',
         createdAt: ref.createdAt,

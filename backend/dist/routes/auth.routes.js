@@ -38,10 +38,11 @@ router.post('/telegram', auth_middleware_1.authMiddleware, async (req, res) => {
             await user.save();
             // If referred by someone, record the referral relation
             if (referrerId) {
-                const referrerExists = await user_model_1.User.findOne({ telegramId: referrerId });
+                const cleanReferrerId = String(referrerId).trim();
+                const referrerExists = await user_model_1.User.findOne({ telegramId: cleanReferrerId });
                 if (referrerExists) {
                     const referral = new referral_model_1.Referral({
-                        referrerId,
+                        referrerId: cleanReferrerId,
                         referredId: tgUser.telegramId,
                         rewardDistributed: false,
                     });
@@ -53,8 +54,29 @@ router.post('/telegram', auth_middleware_1.authMiddleware, async (req, res) => {
             }
         }
         else {
-            // Update username/names if changed in Telegram
             let modified = false;
+            // If user exists but has no referrer, and a new referrer is provided, link them
+            const cleanReferrerId = referredBy ? String(referredBy).trim() : '';
+            if (!user.referredBy && cleanReferrerId && cleanReferrerId !== tgUser.telegramId) {
+                const referrerExists = await user_model_1.User.findOne({ telegramId: cleanReferrerId });
+                if (referrerExists) {
+                    user.referredBy = cleanReferrerId;
+                    modified = true;
+                    // Double check if a referral relation already exists to prevent duplicate entries
+                    const existingReferral = await referral_model_1.Referral.findOne({ referredId: tgUser.telegramId });
+                    if (!existingReferral) {
+                        const referral = new referral_model_1.Referral({
+                            referrerId: cleanReferrerId,
+                            referredId: tgUser.telegramId,
+                            rewardDistributed: false,
+                        });
+                        await referral.save();
+                        referrerExists.referralCount += 1;
+                        await referrerExists.save();
+                    }
+                }
+            }
+            // Update username/names if changed in Telegram
             if (tgUser.username && user.username !== tgUser.username) {
                 user.username = tgUser.username;
                 modified = true;

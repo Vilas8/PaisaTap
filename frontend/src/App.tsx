@@ -30,14 +30,14 @@ const AppContent: React.FC = () => {
     localStorage.setItem('tg_init_data', initData);
     localStorage.setItem('is_dev_mode', isDevMode ? 'true' : 'false');
 
-    // Detect Telegram deep link referral parameter e.g., https://t.me/PaisaTapBot?start=ref_12345
+    // Detect Telegram deep link referral parameter e.g., start=ref_12345 or start=12345
     let referrerId: string | null = null;
     
     try {
       // Access Telegram WebApp startup parameters
       const startParam = (window as any).Telegram?.WebApp?.initDataUnsafe?.start_param;
-      if (startParam && startParam.startsWith('ref_')) {
-        referrerId = startParam.substring(4);
+      if (startParam) {
+        referrerId = startParam.startsWith('ref_') ? startParam.substring(4) : startParam;
         console.log(`Detected referral registration. Referrer Telegram ID: ${referrerId}`);
       }
     } catch (e) {
