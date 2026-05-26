@@ -1,5 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
+* {
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
 :root {
   font-family: 'Outfit', sans-serif;
   line-height: 1.5;
@@ -282,6 +287,9 @@ body {
   position: relative;
   transition: all 0.1s ease;
   z-index: 10;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  user-select: none;
 }
 
 .tap-button::before {

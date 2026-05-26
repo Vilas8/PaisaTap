@@ -45,6 +45,7 @@ function verifyTelegramInitData(initData, botToken) {
  */
 const authMiddleware = (req, res, next) => {
     const initDataHeader = req.headers['x-telegram-init-data'];
+    const authHeader = req.headers['authorization'];
     const devUserHeader = req.headers['x-dev-user-id'];
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     // Development bypass (only if NODE_ENV is development)
@@ -57,22 +58,26 @@ const authMiddleware = (req, res, next) => {
         };
         return next();
     }
-    if (!initDataHeader) {
-        console.warn('[AUTH ERROR] Missing x-telegram-init-data header. Request headers:', req.headers);
-        return res.status(401).json({ error: 'Unauthorized: Missing initData header' });
+    let initData = initDataHeader;
+    if (!initData && authHeader && authHeader.startsWith('Bearer ')) {
+        initData = authHeader.substring(7);
+    }
+    if (!initData) {
+        console.warn('[AUTH ERROR] Missing x-telegram-init-data or Authorization Bearer header. Request headers:', req.headers);
+        return res.status(401).json({ error: 'Unauthorized: Missing initData credentials' });
     }
     if (!botToken) {
         console.error('TELEGRAM_BOT_TOKEN environment variable is not configured');
         return res.status(500).json({ error: 'Server configuration error' });
     }
-    const isValid = verifyTelegramInitData(initDataHeader, botToken);
+    const isValid = verifyTelegramInitData(initData, botToken);
     if (!isValid) {
         console.warn('[AUTH ERROR] Invalid Telegram initData signature.');
-        console.warn('Received initDataHeader:', initDataHeader);
+        console.warn('Received initData:', initData);
         return res.status(401).json({ error: 'Unauthorized: Invalid initData signature' });
     }
     try {
-        const params = new URLSearchParams(initDataHeader);
+        const params = new URLSearchParams(initData);
         const userString = params.get('user');
         if (!userString) {
             return res.status(400).json({ error: 'Invalid payload: User data missing' });

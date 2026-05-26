@@ -26,7 +26,16 @@ app.use(helmet());
 app.use(cors({
   origin: '*', // For TG mini-apps, allowing requests from any web view is standard
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Telegram-Init-Data', 'x-admin-password', 'x-dev-user-id', 'x-dev-username', 'x-dev-first-name', 'x-dev-last-name']
+  allowedHeaders: [
+    'content-type',
+    'authorization',
+    'x-telegram-init-data',
+    'x-admin-password',
+    'x-dev-user-id',
+    'x-dev-username',
+    'x-dev-first-name',
+    'x-dev-last-name'
+  ]
 }));
 app.use(express.json());
 

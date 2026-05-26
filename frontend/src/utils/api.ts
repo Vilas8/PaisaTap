@@ -17,7 +17,8 @@ export async function apiRequest(endpoint: string, options: RequestOptions = {})
 
   // Attach Telegram initialization signature
   if (initData) {
-    headers['X-Telegram-Init-Data'] = initData;
+    headers['x-telegram-init-data'] = initData;
+    headers['Authorization'] = `Bearer ${initData}`;
   }
 
   // Attach developer headers if operating outside the Telegram client

@@ -53,6 +53,7 @@ export function verifyTelegramInitData(initData: string, botToken: string): bool
  */
 export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const initDataHeader = req.headers['x-telegram-init-data'] as string;
+  const authHeader = req.headers['authorization'] as string;
   const devUserHeader = req.headers['x-dev-user-id'] as string;
 
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -68,9 +69,14 @@ export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: N
     return next();
   }
 
-  if (!initDataHeader) {
-    console.warn('[AUTH ERROR] Missing x-telegram-init-data header. Request headers:', req.headers);
-    return res.status(401).json({ error: 'Unauthorized: Missing initData header' });
+  let initData = initDataHeader;
+  if (!initData && authHeader && authHeader.startsWith('Bearer ')) {
+    initData = authHeader.substring(7);
+  }
+
+  if (!initData) {
+    console.warn('[AUTH ERROR] Missing x-telegram-init-data or Authorization Bearer header. Request headers:', req.headers);
+    return res.status(401).json({ error: 'Unauthorized: Missing initData credentials' });
   }
 
   if (!botToken) {
@@ -78,16 +84,16 @@ export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: N
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
-  const isValid = verifyTelegramInitData(initDataHeader, botToken);
+  const isValid = verifyTelegramInitData(initData, botToken);
 
   if (!isValid) {
     console.warn('[AUTH ERROR] Invalid Telegram initData signature.');
-    console.warn('Received initDataHeader:', initDataHeader);
+    console.warn('Received initData:', initData);
     return res.status(401).json({ error: 'Unauthorized: Invalid initData signature' });
   }
 
   try {
-    const params = new URLSearchParams(initDataHeader);
+    const params = new URLSearchParams(initData);
     const userString = params.get('user');
 
     if (!userString) {
