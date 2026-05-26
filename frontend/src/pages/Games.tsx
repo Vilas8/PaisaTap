@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTelegram } from '../contexts/TelegramContext';
 import { apiRequest } from '../utils/api';
+import { AdsgramService } from '../utils/adsgram';
 import confetti from 'canvas-confetti';
+import { Sparkles, Zap, Play, Trophy } from 'lucide-react';
 
 interface WheelReward {
   text: string;
@@ -26,6 +28,20 @@ export const Games: React.FC = () => {
   const [catcherTimeLeft, setCatcherTimeLeft] = useState(30);
   const [catcherStatus, setCatcherStatus] = useState<'idle' | 'playing' | 'gameover' | 'completed'>('idle');
   const [catcherRewardAmount, setCatcherRewardAmount] = useState(0);
+
+  // Ad & Double Payout Modal States
+  const [showRewardModal, setShowRewardModal] = useState(false);
+  const [rewardClaiming, setRewardClaiming] = useState(false);
+  const [currentReward, setCurrentReward] = useState<{
+    game: string;
+    type: 'cash' | 'energy' | 'none';
+    value: number;
+    energyCost: number;
+  } | null>(null);
+
+  // Scratch card status state
+  const [scratchStatus, setScratchStatus] = useState<'idle' | 'scratching' | 'completed'>('idle');
+  const [scratchPlayWithAd, setScratchPlayWithAd] = useState(false);
 
   const wheelRef = useRef<HTMLDivElement>(null);
   const scratchCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -73,9 +89,9 @@ export const Games: React.FC = () => {
   }, []);
 
   // SPIN THE WHEEL GAME LOGIC
-  const spinWheel = async () => {
+  const spinWheel = async (playWithAd: boolean) => {
     if (spinning) return;
-    if (energy < 150) {
+    if (!playWithAd && energy < 150) {
       triggerHaptic('error');
       alert('Not enough energy! Spinning costs 150 energy.');
       return;
@@ -84,49 +100,40 @@ export const Games: React.FC = () => {
     setSpinning(true);
     triggerHaptic('heavy');
 
-    const segmentIndex = Math.floor(Math.random() * wheelRewards.length);
-    const chosenReward = wheelRewards[segmentIndex];
-
-    const rotationCount = 5;
-    const segmentAngle = 45;
-    const targetDeg = (rotationCount * 360) + (360 - (segmentIndex * segmentAngle));
-
-    if (wheelRef.current) {
-      wheelRef.current.style.transform = `rotate(${targetDeg}deg)`;
-    }
-
-    setTimeout(async () => {
-      try {
-        const data = await apiRequest('/api/user/game-reward', {
-          method: 'POST',
-          body: {
-            game: 'spin',
-            rewardType: chosenReward.type,
-            rewardValue: chosenReward.value,
-            energyCost: 150,
-          },
-        });
-
-        if (data.success) {
-          setEnergy(data.energy);
-          triggerHaptic('success');
-
-          if (chosenReward.type === 'cash' && chosenReward.value >= 5) {
-            confetti({
-              particleCount: 100,
-              spread: 60,
-              colors: ['#22c55e', '#f59e0b', '#ffffff'],
-            });
-          }
-
-          alert(data.message);
-        }
-      } catch (err: any) {
-        alert(err.message || 'Game processing failed');
-      } finally {
-        setSpinning(false);
+    try {
+      if (playWithAd) {
+        await AdsgramService.showAd('block_game_spin');
       }
-    }, 4100);
+
+      const segmentIndex = Math.floor(Math.random() * wheelRewards.length);
+      const chosenReward = wheelRewards[segmentIndex];
+
+      const rotationCount = 5;
+      const segmentAngle = 45;
+      const targetDeg = (rotationCount * 360) + (360 - (segmentIndex * segmentAngle));
+
+      if (wheelRef.current) {
+        wheelRef.current.style.transform = `rotate(${targetDeg}deg)`;
+      }
+
+      setTimeout(() => {
+        setCurrentReward({
+          game: 'spin',
+          type: chosenReward.type,
+          value: chosenReward.value,
+          energyCost: playWithAd ? 0 : 150,
+        });
+        setShowRewardModal(true);
+        setSpinning(false);
+      }, 4100);
+
+    } catch (err: any) {
+      setSpinning(false);
+      triggerHaptic('error');
+      if (err.message !== 'User skipped the ad.') {
+        alert(err.message || 'Game processing failed');
+      }
+    }
   };
 
   // SCRATCH CARD GAME LOGIC
@@ -154,21 +161,43 @@ export const Games: React.FC = () => {
     setScratchReward({ amount });
   };
 
+  const startScratchCard = async (playWithAd: boolean) => {
+    if (!playWithAd && energy < 100) {
+      triggerHaptic('error');
+      alert('Not enough energy! Scratching costs 100 energy.');
+      return;
+    }
+
+    triggerHaptic('medium');
+
+    try {
+      if (playWithAd) {
+        await AdsgramService.showAd('block_game_scratch');
+      }
+
+      setScratchPlayWithAd(playWithAd);
+      setScratchStatus('scratching');
+      setTimeout(() => {
+        initScratchCard();
+      }, 50);
+    } catch (err: any) {
+      triggerHaptic('error');
+      if (err.message !== 'User skipped the ad.') {
+        alert(err.message || 'Failed to start scratch card.');
+      }
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'scratch') {
-      initScratchCard();
+      setScratchStatus('idle');
     }
   }, [activeTab]);
 
   const handleScratchMove = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    if (scratchRevealed || spinning) return;
+    if (scratchRevealed || spinning || scratchStatus !== 'scratching') return;
     
     if (!scratching) {
-      if (energy < 100) {
-        triggerHaptic('error');
-        alert('Not enough energy! Scratching costs 100 energy.');
-        return;
-      }
       setScratching(true);
     }
 
@@ -216,32 +245,17 @@ export const Games: React.FC = () => {
 
       if (transparencyRatio >= 0.5 && !scratchRevealed && scratchReward) {
         setScratchRevealed(true);
+        setScratchStatus('completed');
         triggerHaptic('success');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        try {
-          const data = await apiRequest('/api/user/game-reward', {
-            method: 'POST',
-            body: {
-              game: 'scratch',
-              rewardType: 'cash',
-              rewardValue: scratchReward.amount,
-              energyCost: 100,
-            },
-          });
-
-          if (data.success) {
-            setEnergy(data.energy);
-            if (scratchReward.amount >= 3) {
-              confetti({
-                particleCount: 50,
-                spread: 50,
-              });
-            }
-          }
-        } catch (err: any) {
-          alert(err.message || 'Scratch reward claim failed');
-        }
+        setCurrentReward({
+          game: 'scratch',
+          type: 'cash',
+          value: scratchReward.amount,
+          energyCost: scratchPlayWithAd ? 0 : 100,
+        });
+        setShowRewardModal(true);
       }
     } catch (e) {
       console.error(e);
@@ -249,31 +263,46 @@ export const Games: React.FC = () => {
   };
 
   // COIN CATCHER GAME LOGIC
-  const startCatcherGame = async () => {
-    if (energy < 100) {
+  const startCatcherGame = async (playWithAd: boolean) => {
+    if (!playWithAd && energy < 100) {
       triggerHaptic('error');
       alert('Not enough energy! Coin Catcher costs 100 energy.');
       return;
     }
 
     triggerHaptic('medium');
-    setCatcherScore(0);
-    setCatcherLives(3);
-    setCatcherTimeLeft(30);
-    setCatcherStatus('playing');
-    setCatcherPlaying(true);
 
-    catcherStateRef.current = {
-      basketX: 115,
-      basketWidth: 70,
-      basketHeight: 18,
-      items: [],
-      score: 0,
-      lives: 3,
-      timeLeft: 30,
-      playing: true,
-      lastSpawnTime: Date.now()
-    };
+    try {
+      if (playWithAd) {
+        await AdsgramService.showAd('block_game_catcher');
+      }
+
+      setCatcherScore(0);
+      setCatcherLives(3);
+      setCatcherTimeLeft(30);
+      setCatcherStatus('playing');
+      setCatcherPlaying(true);
+
+      catcherStateRef.current = {
+        basketX: 115,
+        basketWidth: 70,
+        basketHeight: 18,
+        items: [],
+        score: 0,
+        lives: 3,
+        timeLeft: 30,
+        playing: true,
+        lastSpawnTime: Date.now()
+      };
+
+      (catcherStateRef.current as any).playWithAd = playWithAd;
+
+    } catch (err: any) {
+      triggerHaptic('error');
+      if (err.message !== 'User skipped the ad.') {
+        alert(err.message || 'Failed to start catcher game.');
+      }
+    }
   };
 
   const endCatcherGame = async (finalScore: number) => {
@@ -283,28 +312,96 @@ export const Games: React.FC = () => {
     const rewardVal = Math.round(finalScore * 0.10 * 100) / 100;
     setCatcherRewardAmount(rewardVal);
 
+    const isAdPlay = (catcherStateRef.current as any).playWithAd;
+
+    setCurrentReward({
+      game: 'catcher',
+      type: 'cash',
+      value: rewardVal,
+      energyCost: isAdPlay ? 0 : 100
+    });
+    setShowRewardModal(true);
+  };
+
+  // Claims normal reward (called from Modal)
+  const handleClaimNormalReward = async () => {
+    if (!currentReward || rewardClaiming) return;
+    setRewardClaiming(true);
+    triggerHaptic('medium');
+
     try {
+      if (currentReward.value > 0) {
+        const data = await apiRequest('/api/user/game-reward', {
+          method: 'POST',
+          body: {
+            game: currentReward.game,
+            rewardType: currentReward.type,
+            rewardValue: currentReward.value,
+            energyCost: currentReward.energyCost,
+          },
+        });
+
+        if (data.success) {
+          setEnergy(data.energy);
+          triggerHaptic('success');
+          if (currentReward.type === 'cash' && currentReward.value >= 1) {
+            confetti({
+              particleCount: 50,
+              spread: 40,
+              origin: { y: 0.7 }
+            });
+          }
+        }
+      }
+      setShowRewardModal(false);
+      setCurrentReward(null);
+    } catch (err: any) {
+      alert(err.message || 'Claim failed');
+    } finally {
+      setRewardClaiming(false);
+    }
+  };
+
+  // Plays an ad to double cash rewards
+  const handleDoubleReward = async () => {
+    if (!currentReward || rewardClaiming) return;
+    setRewardClaiming(true);
+    triggerHaptic('medium');
+
+    try {
+      // Trigger Ad (block_double_game)
+      await AdsgramService.showAd('block_double_game');
+
       const data = await apiRequest('/api/user/game-reward', {
         method: 'POST',
         body: {
-          game: 'catcher',
-          rewardType: 'cash',
-          rewardValue: rewardVal,
-          energyCost: 100
-        }
+          game: currentReward.game,
+          rewardType: currentReward.type,
+          rewardValue: currentReward.value * 2, // Doubled!
+          energyCost: currentReward.energyCost,
+        },
       });
+
       if (data.success) {
         setEnergy(data.energy);
-        if (rewardVal > 0) {
-          confetti({
-            particleCount: 60,
-            spread: 50,
-            origin: { y: 0.7 }
-          });
-        }
+        triggerHaptic('success');
+        confetti({
+          particleCount: 100,
+          spread: 60,
+          colors: ['#22c55e', '#f59e0b', '#ffffff'],
+          origin: { y: 0.7 }
+        });
       }
+      setShowRewardModal(false);
+      setCurrentReward(null);
     } catch (err: any) {
-      alert(err.message || 'Failed to submit game reward');
+      console.error('Double reward error:', err);
+      triggerHaptic('error');
+      if (err.message !== 'User skipped the ad.') {
+        alert(err.message || 'Failed to double reward.');
+      }
+    } finally {
+      setRewardClaiming(false);
     }
   };
 
@@ -495,7 +592,7 @@ export const Games: React.FC = () => {
         <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-primary)', fontWeight: '600' }}>
           ⚡ Energy Available:
         </span>
-        <span style={{ fontWeight: '700' }}>{energy} / {maxEnergy}</span>
+        <span style={{ fontWeight: '700' }}>{Math.floor(energy)} / {maxEnergy}</span>
       </div>
 
       {/* Tabs */}
@@ -578,59 +675,92 @@ export const Games: React.FC = () => {
             </div>
           </div>
 
-          <button
-            className="btn"
-            style={{ width: '80%', margin: '20px auto 10px auto' }}
-            onClick={spinWheel}
-            disabled={spinning}
-          >
-            {spinning ? 'Spinning...' : 'Spin Now (150 energy)'}
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
+            <button
+              className="btn btn-accent"
+              style={{ width: '85%', margin: '0 auto' }}
+              onClick={() => spinWheel(false)}
+              disabled={spinning}
+            >
+              {spinning ? 'Spinning...' : 'Spin Now (150 energy)'}
+            </button>
+            <button
+              className="btn btn-secondary"
+              style={{ width: '85%', margin: '0 auto', display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center', minHeight: '40px' }}
+              onClick={() => spinWheel(true)}
+              disabled={spinning}
+            >
+              <Play size={14} />
+              Spin Free with Ad
+            </button>
+          </div>
         </div>
       )}
 
       {activeTab === 'scratch' && (
         <div className="glass-card" style={{ textAlign: 'center', margin: '0' }}>
           <h3>Lucky Scratch Card</h3>
-          <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '20px' }}>
-            Cost: 100 energy | Reveal cash reward!
-          </p>
-
-          <div className="scratch-card-wrapper">
-            <div className="scratch-card-bg">
-              {scratchReward && (
-                <div style={{ padding: '20px', textAlign: 'center' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
-                    You Won
-                  </span>
-                  <div style={{ fontSize: '28px', fontWeight: '800', color: 'var(--color-primary)' }}>
-                    ₹{scratchReward.amount.toFixed(2)}
-                  </div>
-                  <span style={{ fontSize: '11px', color: 'var(--color-accent)' }}>
-                    Credited to Wallet!
-                  </span>
-                </div>
-              )}
+          
+          {scratchStatus === 'idle' && (
+            <div style={{ padding: '30px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+              <div style={{ fontSize: '48px' }}>✨</div>
+              <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', maxWidth: '240px', lineHeight: '1.5', margin: 0 }}>
+                Scratch the surface to reveal a direct cash prize instantly credited to your wallet balance.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '85%', marginTop: '10px' }}>
+                <button className="btn btn-accent" onClick={() => startScratchCard(false)}>
+                  Scratch Card (100 energy)
+                </button>
+                <button className="btn btn-secondary" style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center', minHeight: '40px' }} onClick={() => startScratchCard(true)}>
+                  <Play size={14} />
+                  Scratch Free with Ad
+                </button>
+              </div>
             </div>
+          )}
 
-            <canvas
-              ref={scratchCanvasRef}
-              className="scratch-card-canvas"
-              width={280}
-              height={160}
-              onMouseMove={handleScratchMove}
-              onTouchMove={handleScratchMove}
-            ></canvas>
-          </div>
+          {(scratchStatus === 'scratching' || scratchStatus === 'completed') && (
+            <div>
+              <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '20px' }}>
+                Reveal at least 50% of the surface area!
+              </p>
+              <div className="scratch-card-wrapper" style={{ margin: '0 auto' }}>
+                <div className="scratch-card-bg">
+                  {scratchReward && (
+                    <div style={{ padding: '20px', textAlign: 'center' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+                        You Won
+                      </span>
+                      <div style={{ fontSize: '28px', fontWeight: '800', color: 'var(--color-primary)' }}>
+                        ₹{scratchReward.amount.toFixed(2)}
+                      </div>
+                      <span style={{ fontSize: '11px', color: 'var(--color-accent)' }}>
+                        Scratch Completed!
+                      </span>
+                    </div>
+                  )}
+                </div>
 
-          <button
-            className="btn btn-secondary"
-            style={{ width: '80%', margin: '10px auto' }}
-            onClick={initScratchCard}
-            disabled={!scratchRevealed}
-          >
-            Play Again (100 energy)
-          </button>
+                <canvas
+                  ref={scratchCanvasRef}
+                  className="scratch-card-canvas"
+                  width={280}
+                  height={160}
+                  onMouseMove={handleScratchMove}
+                  onTouchMove={handleScratchMove}
+                ></canvas>
+              </div>
+
+              <button
+                className="btn btn-secondary"
+                style={{ width: '80%', margin: '20px auto 10px auto' }}
+                onClick={() => setScratchStatus('idle')}
+                disabled={scratchStatus === 'scratching'}
+              >
+                Back to Play Options
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -638,7 +768,7 @@ export const Games: React.FC = () => {
         <div className="glass-card" style={{ textAlign: 'center', margin: '0' }}>
           <h3>Coin Catcher Arcade</h3>
           <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '15px' }}>
-            Cost: 100 energy | Catch coins (+₹0.10) & Avoid bombs!
+            Catch coins (+₹0.10) & Avoid bombs!
           </p>
 
           {catcherStatus === 'idle' && (
@@ -647,9 +777,15 @@ export const Games: React.FC = () => {
               <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', maxWidth: '240px', margin: '0 auto 20px auto', lineHeight: '1.5' }}>
                 Drag the gold basket left and right to catch falling ₹ coins. Do not catch the red bombs!
               </p>
-              <button className="btn" style={{ width: '80%', margin: '0 auto' }} onClick={startCatcherGame}>
-                Start Playing (100 energy)
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '85%', margin: '0 auto' }}>
+                <button className="btn btn-accent" onClick={() => startCatcherGame(false)}>
+                  Start Playing (100 energy)
+                </button>
+                <button className="btn btn-secondary" style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center', minHeight: '40px' }} onClick={() => startCatcherGame(true)}>
+                  <Play size={14} />
+                  Play Free with Ad
+                </button>
+              </div>
             </div>
           )}
 
@@ -701,11 +837,76 @@ export const Games: React.FC = () => {
                 </div>
               </div>
 
-              <button className="btn" style={{ width: '80%', margin: '0 auto' }} onClick={startCatcherGame}>
-                Play Again (100 energy)
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '85%', margin: '0 auto' }}>
+                <button className="btn btn-accent" onClick={() => startCatcherGame(false)}>
+                  Play Again (100 energy)
+                </button>
+                <button className="btn btn-secondary" style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center', minHeight: '40px' }} onClick={() => startCatcherGame(true)}>
+                  <Play size={14} />
+                  Play Free with Ad
+                </button>
+              </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Premium Reward & Double Claim Overlay Modal */}
+      {showRewardModal && currentReward && (
+        <div className="modal-overlay" style={{ zIndex: 9999 }}>
+          <div className="modal-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', padding: '32px 24px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.1)', background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '70px', height: '70px', borderRadius: '50%', background: currentReward.value > 0 ? (currentReward.type === 'cash' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)') : 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              {currentReward.value > 0 ? (
+                currentReward.type === 'cash' ? <Trophy size={36} style={{ color: 'var(--color-accent)' }} /> : <Zap size={36} style={{ color: 'var(--color-primary)' }} />
+              ) : (
+                <span style={{ fontSize: '32px' }}>😢</span>
+              )}
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '800' }}>
+                {currentReward.value > 0 ? 'Congratulations!' : 'Hard Luck!'}
+              </h3>
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                {currentReward.value > 0 
+                  ? `You won a reward playing ${currentReward.game === 'spin' ? 'Lucky Spin' : currentReward.game === 'scratch' ? 'Scratch Card' : 'Coin Catcher'}.`
+                  : 'Better luck next time. Spin again to win cash!'
+                }
+              </p>
+            </div>
+
+            {currentReward.value > 0 && (
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '16px 24px', minWidth: '150px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Reward Amount</span>
+                <div style={{ fontSize: '32px', fontWeight: '800', color: currentReward.type === 'cash' ? 'var(--color-accent)' : 'var(--color-primary)', marginTop: '4px' }}>
+                  {currentReward.type === 'cash' ? `₹${currentReward.value.toFixed(2)}` : `${currentReward.value} Energy`}
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', marginTop: '10px' }}>
+              {currentReward.type === 'cash' && currentReward.value > 0 && (
+                <button
+                  className="btn btn-accent"
+                  style={{ width: '100%', display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center', minHeight: '44px', fontWeight: '700' }}
+                  disabled={rewardClaiming}
+                  onClick={handleDoubleReward}
+                >
+                  <Sparkles size={16} />
+                  {rewardClaiming ? 'Processing...' : `Double to ₹ ${(currentReward.value * 2).toFixed(2)} with Ad`}
+                </button>
+              )}
+
+              <button
+                className="btn btn-secondary"
+                style={{ width: '100%', minHeight: '42px' }}
+                disabled={rewardClaiming}
+                onClick={handleClaimNormalReward}
+              >
+                {rewardClaiming ? 'Claiming...' : currentReward.value > 0 ? 'Claim Normal Reward' : 'Close'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

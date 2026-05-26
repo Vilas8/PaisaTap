@@ -24,9 +24,10 @@ router.get('/me', async (req: AuthenticatedRequest, res: Response) => {
     const now = new Date();
     const secondsPassed = Math.floor((now.getTime() - new Date(user.lastEnergyRefill).getTime()) / 1000);
     
-    // Regenerate 3 energy per second
+    // Regenerate energy slowly (completely refills in 4 hours)
     if (secondsPassed > 0 && user.energy < user.maxEnergy) {
-      const regenerated = secondsPassed * 3;
+      const refillRate = user.maxEnergy / 14400; // 4 hours
+      const regenerated = secondsPassed * refillRate;
       user.energy = Math.min(user.maxEnergy, user.energy + regenerated);
       user.lastEnergyRefill = now;
       await user.save();
@@ -69,9 +70,10 @@ router.post('/tap', async (req: AuthenticatedRequest, res: Response) => {
     const now = new Date();
     const secondsPassed = Math.floor((now.getTime() - new Date(user.lastEnergyRefill).getTime()) / 1000);
     
-    // 1. First, regenerate energy since last action
+    // 1. First, regenerate energy since last action slowly (4 hours)
     if (secondsPassed > 0 && user.energy < user.maxEnergy) {
-      const regenerated = secondsPassed * 3;
+      const refillRate = user.maxEnergy / 14400;
+      const regenerated = secondsPassed * refillRate;
       user.energy = Math.min(user.maxEnergy, user.energy + regenerated);
     }
     user.lastEnergyRefill = now;
@@ -195,7 +197,8 @@ router.post('/game-reward', async (req: AuthenticatedRequest, res: Response) => 
     const now = new Date();
     const secondsPassed = Math.floor((now.getTime() - new Date(user.lastEnergyRefill).getTime()) / 1000);
     if (secondsPassed > 0 && user.energy < user.maxEnergy) {
-      user.energy = Math.min(user.maxEnergy, user.energy + secondsPassed * 3);
+      const refillRate = user.maxEnergy / 14400;
+      user.energy = Math.min(user.maxEnergy, user.energy + secondsPassed * refillRate);
     }
     user.lastEnergyRefill = now;
 
@@ -226,6 +229,89 @@ router.post('/game-reward', async (req: AuthenticatedRequest, res: Response) => 
     });
   } catch (error) {
     console.error('Error claiming game reward:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * POST /api/user/ad-watch
+ * Records a rewarded ad watch and rewards the user.
+ * Action types: 'energy_refill' or 'task_reward'
+ */
+router.post('/ad-watch', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const tgUser = req.user!;
+    const { action } = req.body;
+
+    if (!action || !['energy_refill', 'task_reward'].includes(action)) {
+      return res.status(400).json({ error: 'Invalid ad watch action' });
+    }
+
+    const user = await User.findOne({ telegramId: tgUser.telegramId });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // 1. Recover energy first
+    const now = new Date();
+    const secondsPassed = Math.floor((now.getTime() - new Date(user.lastEnergyRefill).getTime()) / 1000);
+    if (secondsPassed > 0 && user.energy < user.maxEnergy) {
+      const refillRate = user.maxEnergy / 14400;
+      user.energy = Math.min(user.maxEnergy, user.energy + secondsPassed * refillRate);
+    }
+    user.lastEnergyRefill = now;
+
+    if (action === 'energy_refill') {
+      // Increment watch count
+      user.adRefillsWatched = (user.adRefillsWatched || 0) + 1;
+      
+      let refilled = false;
+      if (user.adRefillsWatched >= 3) {
+        user.energy = user.maxEnergy;
+        user.adRefillsWatched = 0;
+        refilled = true;
+      }
+
+      await user.save();
+
+      return res.status(200).json({
+        success: true,
+        energy: user.energy,
+        adRefillsWatched: user.adRefillsWatched,
+        message: refilled ? 'Energy fully refilled!' : `Ad watch registered (${user.adRefillsWatched}/3).`
+      });
+    } else if (action === 'task_reward') {
+      // Watch & Earn Cash Task
+      const COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+      
+      if (user.lastAdTaskWatched) {
+        const timePassed = now.getTime() - new Date(user.lastAdTaskWatched).getTime();
+        if (timePassed < COOLDOWN_MS) {
+          const remainingSeconds = Math.ceil((COOLDOWN_MS - timePassed) / 1000);
+          return res.status(400).json({
+            error: `Ad task is on cooldown. Please wait ${remainingSeconds} seconds.`,
+            remainingSeconds
+          });
+        }
+      }
+
+      // Reward ₹0.50
+      const reward = 0.50;
+      user.balance = Math.round((user.balance + reward) * 100) / 100;
+      user.totalEarned = Math.round((user.totalEarned + reward) * 100) / 100;
+      user.lastAdTaskWatched = now;
+
+      await user.save();
+
+      return res.status(200).json({
+        success: true,
+        balance: user.balance,
+        totalEarned: user.totalEarned,
+        message: 'Congratulations! You earned ₹0.50 for watching the ad.'
+      });
+    }
+  } catch (error) {
+    console.error('Error in ad-watch endpoint:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

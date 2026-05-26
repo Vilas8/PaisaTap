@@ -15,6 +15,8 @@ export interface IUser extends Document {
   lastEnergyRefill: Date;
   referredBy?: string;
   referralCount: number;
+  adRefillsWatched: number;
+  lastAdTaskWatched?: Date;
   createdAt: Date;
 }
 
@@ -33,6 +35,8 @@ const userSchema = new Schema<IUser>({
   lastEnergyRefill: { type: Date, default: () => new Date() },
   referredBy: { type: String, index: true },
   referralCount: { type: Number, default: 0 },
+  adRefillsWatched: { type: Number, default: 0 },
+  lastAdTaskWatched: { type: Date },
   createdAt: { type: Date, default: Date.now }
 });
 

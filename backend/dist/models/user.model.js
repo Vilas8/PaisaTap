@@ -17,6 +17,8 @@ const userSchema = new mongoose_1.Schema({
     lastEnergyRefill: { type: Date, default: () => new Date() },
     referredBy: { type: String, index: true },
     referralCount: { type: Number, default: 0 },
+    adRefillsWatched: { type: Number, default: 0 },
+    lastAdTaskWatched: { type: Date },
     createdAt: { type: Date, default: Date.now }
 });
 // Pre-save hook to calculate level based on totalEarned

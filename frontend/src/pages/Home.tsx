@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTelegram } from '../contexts/TelegramContext';
 import { apiRequest } from '../utils/api';
+import { AdsgramService } from '../utils/adsgram';
 import confetti from 'canvas-confetti';
 import { Sparkles, Calendar, Zap, Award } from 'lucide-react';
 
@@ -13,6 +14,7 @@ interface UserData {
   level: number;
   energy: number;
   maxEnergy: number;
+  adRefillsWatched: number;
 }
 
 interface FloatingPoint {
@@ -27,6 +29,7 @@ export const Home: React.FC = () => {
   const [dbUser, setDbUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [dailyClaimLoading, setDailyClaimLoading] = useState(false);
+  const [adRefillLoading, setAdRefillLoading] = useState(false);
   const [floatingPoints, setFloatingPoints] = useState<FloatingPoint[]>([]);
   const pendingTapsRef = useRef(0);
 
@@ -55,14 +58,15 @@ export const Home: React.FC = () => {
   useEffect(() => {
     fetchProfile();
 
-    // Setup background energy recovery interval (3 energy per second)
+    // Setup background energy recovery interval (completely refills in 4 hours, 14,400 seconds)
     const energyInterval = setInterval(() => {
       if (userRef.current) {
         const u = userRef.current;
         if (u.energy < u.maxEnergy) {
+          const refillRate = u.maxEnergy / 14400;
           setDbUser({
             ...u,
-            energy: Math.min(u.maxEnergy, u.energy + 3),
+            energy: Math.min(u.maxEnergy, u.energy + refillRate),
           });
         }
       }
@@ -80,9 +84,61 @@ export const Home: React.FC = () => {
     };
   }, []);
 
+  // Handle ad watch energy refill
+  const handleAdEnergyRefill = async () => {
+    if (adRefillLoading || !dbUser) return;
+    if (dbUser.energy >= dbUser.maxEnergy) {
+      alert('Your energy is already full!');
+      return;
+    }
+
+    setAdRefillLoading(true);
+    triggerHaptic('medium');
+
+    try {
+      // Trigger Ad (PaisaTap ad block ID is configured, e.g. 'block_energy_refill')
+      await AdsgramService.showAd('block_energy_refill');
+
+      const data = await apiRequest('/api/user/ad-watch', {
+        method: 'POST',
+        body: { action: 'energy_refill' },
+      });
+
+      if (data.success) {
+        setDbUser((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            energy: data.energy,
+            adRefillsWatched: data.adRefillsWatched,
+          };
+        });
+
+        triggerHaptic('success');
+        
+        if (data.energy === dbUser.maxEnergy) {
+          confetti({
+            particleCount: 50,
+            spread: 40,
+            origin: { y: 0.7 },
+            colors: ['#10b981', '#ffffff'],
+          });
+        }
+      }
+    } catch (err: any) {
+      console.error('Ad refill error:', err);
+      triggerHaptic('error');
+      if (err.message !== 'User skipped the ad.') {
+        alert(err.message || 'Failed to play ad. Please try again.');
+      }
+    } finally {
+      setAdRefillLoading(false);
+    }
+  };
+
   // Handle tap event
   const handleTap = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!dbUser || dbUser.energy <= 0) {
+    if (!dbUser || dbUser.energy < 1) {
       triggerHaptic('error');
       return;
     }
@@ -337,7 +393,7 @@ export const Home: React.FC = () => {
               Energy
             </span>
             <span>
-              {dbUser?.energy} / {dbUser?.maxEnergy}
+              {Math.floor(dbUser?.energy || 0)} / {dbUser?.maxEnergy}
             </span>
           </div>
           <div className="energy-bar-bg">
@@ -346,6 +402,45 @@ export const Home: React.FC = () => {
               style={{ width: `${((dbUser?.energy || 0) / (dbUser?.maxEnergy || 1000)) * 100}%` }}
             ></div>
           </div>
+        </div>
+
+        {/* Ad Refill Section */}
+        <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px dashed rgba(255, 255, 255, 0.08)', paddingTop: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
+            <span style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              Instant Refill progress:
+              <span style={{ display: 'flex', gap: '4px' }}>
+                {[1, 2, 3].map((num) => (
+                  <span
+                    key={num}
+                    style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: (dbUser?.adRefillsWatched || 0) >= num ? 'var(--color-primary)' : 'rgba(255, 255, 255, 0.15)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      display: 'inline-block',
+                      transition: 'background-color 0.2s',
+                    }}
+                  />
+                ))}
+              </span>
+            </span>
+            {dbUser && dbUser.energy >= dbUser.maxEnergy ? (
+              <span style={{ color: 'var(--color-primary)', fontSize: '11px', fontWeight: '500' }}>Fully Charged</span>
+            ) : (
+              <span style={{ color: 'var(--color-text-secondary)', fontSize: '11px' }}>{dbUser?.adRefillsWatched || 0}/3 watched</span>
+            )}
+          </div>
+          <button
+            className="btn btn-accent"
+            style={{ width: '100%', display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center', minHeight: '42px' }}
+            disabled={!dbUser || dbUser.energy >= dbUser.maxEnergy || adRefillLoading}
+            onClick={handleAdEnergyRefill}
+          >
+            <Sparkles size={14} />
+            {adRefillLoading ? 'Loading Video Sponsor...' : dbUser && dbUser.energy >= dbUser.maxEnergy ? 'Energy Already Full' : 'Watch Ad to Refill (+1/3)'}
+          </button>
         </div>
       </div>
 
