@@ -1,4 +1,24 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const resolveApiUrl = (): string => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && (envUrl.startsWith('http://') || envUrl.startsWith('https://'))) {
+    return envUrl;
+  }
+  
+  // Resolve URL dynamically if running on Render static hosting
+  const hostname = window.location.hostname;
+  if (hostname.endsWith('.onrender.com')) {
+    const prefixIdx = hostname.indexOf('-frontend');
+    if (prefixIdx !== -1) {
+      const prefix = hostname.substring(0, prefixIdx);
+      return `https://${prefix}-backend.onrender.com`;
+    }
+  }
+  
+  // Local development default fallback
+  return 'http://localhost:5000';
+};
+
+const API_URL = resolveApiUrl();
 
 interface RequestOptions extends RequestInit {
   body?: any;
@@ -41,10 +61,8 @@ export async function apiRequest(endpoint: string, options: RequestOptions = {})
   if (contentType && contentType.includes('application/json')) {
     data = await response.json();
   } else {
-    const text = await response.text();
-    if (!response.ok) {
-      throw new Error(`HTTP Error ${response.status}: ${text.substring(0, 100) || response.statusText}`);
-    }
+    // If the endpoint failed or returned non-JSON content (e.g. index.html rewrite fallback)
+    throw new Error(`Invalid Response: Expected JSON but received ${contentType || 'plain text'}. Status: ${response.status}`);
   }
 
   if (!response.ok) {
