@@ -17,6 +17,7 @@ export interface IUser extends Document {
   referralCount: number;
   adRefillsWatched: number;
   lastAdTaskWatched?: Date;
+  isBanned: boolean;
   createdAt: Date;
 }
 
@@ -37,6 +38,7 @@ const userSchema = new Schema<IUser>({
   referralCount: { type: Number, default: 0 },
   adRefillsWatched: { type: Number, default: 0 },
   lastAdTaskWatched: { type: Date },
+  isBanned: { type: Boolean, default: false, index: true },
   createdAt: { type: Date, default: Date.now }
 });
 

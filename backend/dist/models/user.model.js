@@ -19,6 +19,7 @@ const userSchema = new mongoose_1.Schema({
     referralCount: { type: Number, default: 0 },
     adRefillsWatched: { type: Number, default: 0 },
     lastAdTaskWatched: { type: Date },
+    isBanned: { type: Boolean, default: false, index: true },
     createdAt: { type: Date, default: Date.now }
 });
 // Pre-save hook to calculate level based on totalEarned

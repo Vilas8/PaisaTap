@@ -5,6 +5,7 @@ import { Gig } from '../models/gig.model';
 import { Withdrawal } from '../models/withdrawal.model';
 import { TaskCompletion } from '../models/task-completion.model';
 import { Referral } from '../models/referral.model';
+import { AdLog } from '../models/ad-log.model';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -66,6 +67,52 @@ router.get('/stats', async (req: Request, res: Response) => {
 
     const pendingTaskCompletions = await TaskCompletion.countDocuments({ status: 'pending' });
 
+    // Ad Watch aggregates & breakdowns
+    const totalAdsWatched = await AdLog.countDocuments();
+    const adBreakdown = await AdLog.aggregate([
+      { $group: { _id: '$action', count: { $sum: 1 } } },
+    ]);
+    const adStats: Record<string, number> = {
+      energy_refill: 0,
+      task_reward: 0,
+      double_game: 0,
+      free_game_spin: 0,
+      free_game_scratch: 0,
+      free_game_catcher: 0,
+    };
+    adBreakdown.forEach((item) => {
+      if (item._id in adStats) {
+        adStats[item._id] = item.count;
+      }
+    });
+
+    // Daily Growth metrics (past 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    const registrationStats = await User.aggregate([
+      { $match: { createdAt: { $gte: sevenDaysAgo } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    const adDailyStats = await AdLog.aggregate([
+      { $match: { createdAt: { $gte: sevenDaysAgo } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
     // Fetch lists for approval dashboards
     const pendingWithdrawals = await Withdrawal.find({ status: 'pending' }).sort({ createdAt: -1 });
     const pendingTasks = await TaskCompletion.find({ status: 'pending' }).populate('taskId').sort({ completedAt: -1 });
@@ -81,6 +128,10 @@ router.get('/stats', async (req: Request, res: Response) => {
         pendingWithdrawalsCount,
         processingWithdrawalsCount,
         pendingTaskCompletions,
+        totalAdsWatched,
+        adBreakdown: adStats,
+        registrations: registrationStats,
+        adDailyStats,
       },
       pendingWithdrawals,
       pendingTasks,
@@ -325,6 +376,83 @@ router.post('/task-completion/review', async (req: Request, res: Response) => {
     return res.status(200).json({ success: true, completion, referralRewarded });
   } catch (error) {
     console.error('Error reviewing task completion:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * GET /api/admin/users
+ * Search and list users with pagination.
+ */
+router.get('/users', async (req: Request, res: Response) => {
+  try {
+    const search = req.query.search as string;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 15;
+    const skip = (page - 1) * limit;
+
+    const query: any = {};
+    if (search) {
+      // Search by username or telegramId
+      query.$or = [
+        { telegramId: { $regex: search, $options: 'i' } },
+        { username: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const totalUsers = await User.countDocuments(query);
+    const users = await User.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalPages = Math.ceil(totalUsers / limit);
+
+    return res.status(200).json({
+      success: true,
+      users,
+      pagination: {
+        totalUsers,
+        totalPages,
+        currentPage: page,
+        limit
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching admin users list:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * POST /api/admin/users/ban
+ * Suspends or reinstates a user's account.
+ */
+router.post('/users/ban', async (req: Request, res: Response) => {
+  try {
+    const { telegramId, isBanned } = req.body;
+
+    if (!telegramId || isBanned === undefined) {
+      return res.status(400).json({ error: 'Telegram ID and ban state are required' });
+    }
+
+    const user = await User.findOne({ telegramId });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    user.isBanned = Boolean(isBanned);
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      user,
+      message: user.isBanned 
+        ? 'User account has been suspended.' 
+        : 'User account has been reinstated.'
+    });
+  } catch (error) {
+    console.error('Error toggling user ban:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

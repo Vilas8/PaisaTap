@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import { User } from '../models/user.model';
+import { AdLog } from '../models/ad-log.model';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -174,7 +175,7 @@ router.post('/daily-claim', async (req: AuthenticatedRequest, res: Response) => 
 router.post('/game-reward', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const tgUser = req.user!;
-    const { game, rewardType, rewardValue, energyCost } = req.body;
+    const { game, rewardType, rewardValue, energyCost, wasDoubled, playWithAd } = req.body;
 
     if (!game || !rewardType || rewardValue === undefined || energyCost === undefined) {
       return res.status(400).json({ error: 'Missing game reward parameters' });
@@ -218,6 +219,30 @@ router.post('/game-reward', async (req: AuthenticatedRequest, res: Response) => 
     }
 
     await user.save();
+
+    // Log ad views in the database
+    if (playWithAd) {
+      try {
+        await AdLog.create({
+          telegramId: tgUser.telegramId,
+          action: `free_game_${game}` as any,
+        });
+      } catch (err) {
+        console.error('Error logging free game ad watch:', err);
+      }
+    }
+
+    if (wasDoubled && rewardType === 'cash') {
+      try {
+        await AdLog.create({
+          telegramId: tgUser.telegramId,
+          action: 'double_game',
+          rewardValue: rewardValue / 2, // The ad payout represents half the total reward
+        });
+      } catch (err) {
+        console.error('Error logging double reward ad watch:', err);
+      }
+    }
 
     return res.status(200).json({
       success: true,
@@ -274,6 +299,16 @@ router.post('/ad-watch', async (req: AuthenticatedRequest, res: Response) => {
 
       await user.save();
 
+      // Log the ad watch
+      try {
+        await AdLog.create({
+          telegramId: tgUser.telegramId,
+          action: 'energy_refill'
+        });
+      } catch (err) {
+        console.error('Error logging energy refill ad watch:', err);
+      }
+
       return res.status(200).json({
         success: true,
         energy: user.energy,
@@ -302,6 +337,17 @@ router.post('/ad-watch', async (req: AuthenticatedRequest, res: Response) => {
       user.lastAdTaskWatched = now;
 
       await user.save();
+
+      // Log the ad watch
+      try {
+        await AdLog.create({
+          telegramId: tgUser.telegramId,
+          action: 'task_reward',
+          rewardValue: reward
+        });
+      } catch (err) {
+        console.error('Error logging task ad watch:', err);
+      }
 
       return res.status(200).json({
         success: true,

@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.authMiddleware = void 0;
 exports.verifyTelegramInitData = verifyTelegramInitData;
 const crypto_1 = __importDefault(require("crypto"));
+const user_model_1 = require("../models/user.model");
 /**
  * Validates Telegram initData query string.
  * Uses the Telegram bot token to verify the signature (hash).
@@ -43,7 +44,7 @@ function verifyTelegramInitData(initData, botToken) {
 /**
  * Authentication middleware for Telegram WebApp requests.
  */
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
     const initDataHeader = req.headers['x-telegram-init-data'];
     const authHeader = req.headers['authorization'];
     const devUserHeader = req.headers['x-dev-user-id'];
@@ -56,6 +57,11 @@ const authMiddleware = (req, res, next) => {
             firstName: req.headers['x-dev-first-name'] || 'Dev',
             lastName: req.headers['x-dev-last-name'] || 'User',
         };
+        // Check if user is banned
+        const dbUser = await user_model_1.User.findOne({ telegramId: req.user.telegramId });
+        if (dbUser && dbUser.isBanned) {
+            return res.status(403).json({ error: 'Forbidden: Your account has been suspended by an administrator.' });
+        }
         return next();
     }
     let initData = initDataHeader;
@@ -89,6 +95,11 @@ const authMiddleware = (req, res, next) => {
             firstName: tgUser.first_name,
             lastName: tgUser.last_name,
         };
+        // Check if user is banned
+        const dbUser = await user_model_1.User.findOne({ telegramId: req.user.telegramId });
+        if (dbUser && dbUser.isBanned) {
+            return res.status(403).json({ error: 'Forbidden: Your account has been suspended by an administrator.' });
+        }
         next();
     }
     catch (error) {

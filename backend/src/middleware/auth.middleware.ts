@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import { User } from '../models/user.model';
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -51,7 +52,7 @@ export function verifyTelegramInitData(initData: string, botToken: string): bool
 /**
  * Authentication middleware for Telegram WebApp requests.
  */
-export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export const authMiddleware = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const initDataHeader = req.headers['x-telegram-init-data'] as string;
   const authHeader = req.headers['authorization'] as string;
   const devUserHeader = req.headers['x-dev-user-id'] as string;
@@ -66,6 +67,13 @@ export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: N
       firstName: (req.headers['x-dev-first-name'] as string) || 'Dev',
       lastName: (req.headers['x-dev-last-name'] as string) || 'User',
     };
+    
+    // Check if user is banned
+    const dbUser = await User.findOne({ telegramId: req.user.telegramId });
+    if (dbUser && dbUser.isBanned) {
+      return res.status(403).json({ error: 'Forbidden: Your account has been suspended by an administrator.' });
+    }
+    
     return next();
   }
 
@@ -107,6 +115,12 @@ export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: N
       firstName: tgUser.first_name,
       lastName: tgUser.last_name,
     };
+
+    // Check if user is banned
+    const dbUser = await User.findOne({ telegramId: req.user.telegramId });
+    if (dbUser && dbUser.isBanned) {
+      return res.status(403).json({ error: 'Forbidden: Your account has been suspended by an administrator.' });
+    }
 
     next();
   } catch (error) {
