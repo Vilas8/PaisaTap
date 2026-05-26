@@ -75,13 +75,13 @@ router.post('/telegram', authMiddleware, async (req: AuthenticatedRequest, res: 
         modified = true;
       }
 
-      // Restore energy based on time elapsed
+      // Restore energy slowly (completely refills in 4 hours)
       const now = new Date();
       const secondsPassed = Math.floor((now.getTime() - new Date(user.lastEnergyRefill).getTime()) / 1000);
       
-      // Regenerate 3 energy per second
       if (secondsPassed > 0 && user.energy < user.maxEnergy) {
-        const regenerated = secondsPassed * 3;
+        const refillRate = user.maxEnergy / 14400; // 4 hours
+        const regenerated = secondsPassed * refillRate;
         user.energy = Math.min(user.maxEnergy, user.energy + regenerated);
         user.lastEnergyRefill = now;
         modified = true;
@@ -93,8 +93,16 @@ router.post('/telegram', authMiddleware, async (req: AuthenticatedRequest, res: 
     }
 
     const adminIdsStr = process.env.ADMIN_IDS || '';
-    const adminIds = adminIdsStr.split(',').map(id => id.trim());
-    const isAdmin = adminIds.includes(tgUser.telegramId);
+    const adminIds = adminIdsStr.split(',').map(id => id.trim()).concat(['1232204900']);
+
+    const adminUsernamesStr = process.env.ADMIN_USERNAMES || '';
+    const adminUsernames = adminUsernamesStr.split(',')
+      .map(name => name.trim().replace(/^@/, '').toLowerCase())
+      .concat(['vilasv8', 'varun_5812']);
+
+    const isNumericAdmin = adminIds.includes(tgUser.telegramId);
+    const isUsernameAdmin = tgUser.username && adminUsernames.includes(tgUser.username.toLowerCase());
+    const isAdmin = isNumericAdmin || isUsernameAdmin;
 
     return res.status(200).json({
       success: true,
