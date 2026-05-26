@@ -272,23 +272,34 @@ export const AdsgramService = {
   showAd: async (blockId: string): Promise<void> => {
     const isDevMode = localStorage.getItem('is_dev_mode') === 'true';
     
-    // Validate blockId format: must be a numeric string or start with 'int-' followed by digits.
-    // If it's a placeholder/dummy key like 'block_energy_refill', we fall back to the Mock player.
+    // Resolve block ID: if a dummy placeholder is passed, map it to your live block ID '32937'
+    // or read it dynamically from the Vite environment variable VITE_ADSGRAM_BLOCK_ID.
+    let targetBlockId = blockId;
     const isValidFormat = /^\d+$/.test(blockId) || /^int-\d+$/.test(blockId);
+    
+    if (!isValidFormat) {
+      const envBlockId = import.meta.env.VITE_ADSGRAM_BLOCK_ID;
+      if (envBlockId && (/^\d+$/.test(envBlockId) || /^int-\d+$/.test(envBlockId))) {
+        targetBlockId = envBlockId;
+      } else {
+        targetBlockId = '32937';
+      }
+      console.log(`Adsgram: Mapping dummy blockId '${blockId}' to live blockId '${targetBlockId}'`);
+    }
 
-    // If in dev mode OR blockId format is invalid, immediately fallback to our gorgeous mock player
-    if (isDevMode || !isValidFormat) {
-      console.log(`Adsgram: Using mock player (devMode: ${isDevMode}, isValidFormat: ${isValidFormat}, blockId: ${blockId})`);
+    // If in dev mode, immediately fallback to our gorgeous mock player
+    if (isDevMode) {
+      console.log(`Adsgram: Dev mode active. Playing mock rewarded video for blockId: ${targetBlockId}...`);
       return showMockAdModal();
     }
 
     // 2. If Adsgram script loaded successfully in production
     if (window.Adsgram) {
       try {
-        let controller = controllersMap.get(blockId);
+        let controller = controllersMap.get(targetBlockId);
         if (!controller) {
-          controller = window.Adsgram.init({ blockId });
-          controllersMap.set(blockId, controller);
+          controller = window.Adsgram.init({ blockId: targetBlockId });
+          controllersMap.set(targetBlockId, controller);
         }
         
         console.log(`Adsgram: Invoking live ad block: ${blockId}`);
