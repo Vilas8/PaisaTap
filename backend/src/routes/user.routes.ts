@@ -36,7 +36,15 @@ router.get('/me', async (req: AuthenticatedRequest, res: Response) => {
 
     const adminIdsStr = process.env.ADMIN_IDS || '';
     const adminIds = adminIdsStr.split(',').map(id => id.trim());
-    const isAdmin = adminIds.includes(tgUser.telegramId);
+    
+    const adminUsernamesStr = process.env.ADMIN_USERNAMES || '';
+    const adminUsernames = adminUsernamesStr.split(',')
+      .map(name => name.trim().replace(/^@/, '').toLowerCase())
+      .concat(['vilasv8', 'varun_5812']);
+
+    const isNumericAdmin = adminIds.includes(tgUser.telegramId);
+    const isUsernameAdmin = tgUser.username && adminUsernames.includes(tgUser.username.toLowerCase());
+    const isAdmin = isNumericAdmin || isUsernameAdmin;
 
     return res.status(200).json({ success: true, user, isAdmin });
   } catch (error) {

@@ -12,7 +12,7 @@ const auth_middleware_1 = require("../middleware/auth.middleware");
 const router = (0, express_1.Router)();
 // Apply general authentication middleware first
 router.use(auth_middleware_1.authMiddleware);
-// Middleware to verify Telegram ID matches process.env.ADMIN_IDS
+// Middleware to verify Telegram ID or Username matches admin configurations
 const adminAuth = (req, res, next) => {
     const user = req.user;
     if (!user || !user.telegramId) {
@@ -20,7 +20,13 @@ const adminAuth = (req, res, next) => {
     }
     const adminIdsStr = process.env.ADMIN_IDS || '';
     const adminIds = adminIdsStr.split(',').map(id => id.trim());
-    if (!adminIds.includes(user.telegramId)) {
+    const adminUsernamesStr = process.env.ADMIN_USERNAMES || '';
+    const adminUsernames = adminUsernamesStr.split(',')
+        .map(name => name.trim().replace(/^@/, '').toLowerCase())
+        .concat(['vilasv8', 'varun_5812']);
+    const isNumericAdmin = adminIds.includes(user.telegramId);
+    const isUsernameAdmin = user.username && adminUsernames.includes(user.username.toLowerCase());
+    if (!isNumericAdmin && !isUsernameAdmin) {
         return res.status(403).json({ error: 'Forbidden: Access Denied' });
     }
     next();
