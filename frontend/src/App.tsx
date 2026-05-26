@@ -17,6 +17,7 @@ import { Home as HomeIcon, CheckSquare, Gamepad2, Users, Wallet as WalletIcon, S
 const AppContent: React.FC = () => {
   const { initData, isDevMode, triggerHaptic } = useTelegram();
   const [authComplete, setAuthComplete] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const location = useLocation();
 
   // Run Telegram onboarding and session handshakes on mount
@@ -49,12 +50,15 @@ const AppContent: React.FC = () => {
       .then((data) => {
         if (data.success) {
           console.log('Session authentication verified.');
-          setAuthComplete(true);
+          setAuthError(null);
         }
       })
       .catch((err) => {
         console.error('Session handshakes failed:', err);
-        setAuthComplete(true); // Allow mounting viewports for fallback mocks
+        setAuthError(err.message || 'Authentication handshakes failed');
+      })
+      .finally(() => {
+        setAuthComplete(true);
       });
   }, [initData, isDevMode]);
 
@@ -81,6 +85,20 @@ const AppContent: React.FC = () => {
       // standard browser sandbox, do nothing
     }
   }, [location.pathname]);
+
+  if (authError) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0b0f19', color: '#fff', padding: '30px', textAlign: 'center', gap: '20px' }}>
+        <div className="user-avatar" style={{ width: '60px', height: '60px', fontSize: '24px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-danger)' }}>⚠️</div>
+        <div style={{ fontWeight: '700', fontSize: '18px' }}>Authentication Failed</div>
+        <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: '1.5', maxWidth: '300px' }}>
+          {authError}
+          <br /><br />
+          <span style={{ color: 'var(--color-accent)' }}>Hint:</span> If this is a signature validation error, make sure your <strong>TELEGRAM_BOT_TOKEN</strong> environment variable on Render matches your bot's token from @BotFather.
+        </div>
+      </div>
+    );
+  }
 
   if (!authComplete) {
     return (
