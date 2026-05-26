@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTelegram } from '../contexts/TelegramContext';
 import { apiRequest } from '../utils/api';
+import { openLink } from '../utils/link';
 import { Share2, Copy, Users, Trophy, Gift } from 'lucide-react';
 
 interface ReferralStat {
@@ -76,7 +77,7 @@ export const Refer: React.FC = () => {
     const text = encodeURIComponent('🚀 Hey! Join PaisaTap on Telegram, tap to earn money, play games, and get cash out instantly! 💸 Get ₹20 starting bonus now:');
     const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(stats.referralLink)}&text=${text}`;
     
-    window.open(shareUrl, '_blank');
+    openLink(shareUrl);
   };
 
   if (loading) {

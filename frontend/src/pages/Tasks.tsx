@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTelegram } from '../contexts/TelegramContext';
 import { apiRequest } from '../utils/api';
+import { openLink } from '../utils/link';
 import { CheckCircle, Clock, Link, ArrowUpRight, PlayCircle, ShieldCheck } from 'lucide-react';
 
 interface TaskData {
@@ -46,7 +47,7 @@ export const Tasks: React.FC = () => {
 
     // Open link if it exists
     if (task.link) {
-      window.open(task.link, '_blank');
+      openLink(task.link);
     }
 
     setSelectedTask(task);
@@ -167,17 +168,18 @@ export const Tasks: React.FC = () => {
             <p className="modal-text">{selectedTask.description}</p>
 
             {selectedTask.link && (
-              <a
-                href={selectedTask.link}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
                 className="btn btn-secondary"
-                style={{ width: '100%', marginBottom: '16px', textDecoration: 'none' }}
-                onClick={() => triggerHaptic('light')}
+                style={{ width: '100%', marginBottom: '16px' }}
+                onClick={() => {
+                  triggerHaptic('light');
+                  openLink(selectedTask.link!);
+                }}
               >
                 Go to Link
                 <ArrowUpRight size={16} />
-              </a>
+              </button>
             )}
 
             {/* Instruction for verification code */}

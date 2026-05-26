@@ -58,6 +58,7 @@ const authMiddleware = (req, res, next) => {
         return next();
     }
     if (!initDataHeader) {
+        console.warn('[AUTH ERROR] Missing x-telegram-init-data header. Request headers:', req.headers);
         return res.status(401).json({ error: 'Unauthorized: Missing initData header' });
     }
     if (!botToken) {
@@ -66,6 +67,8 @@ const authMiddleware = (req, res, next) => {
     }
     const isValid = verifyTelegramInitData(initDataHeader, botToken);
     if (!isValid) {
+        console.warn('[AUTH ERROR] Invalid Telegram initData signature.');
+        console.warn('Received initDataHeader:', initDataHeader);
         return res.status(401).json({ error: 'Unauthorized: Invalid initData signature' });
     }
     try {
