@@ -32,7 +32,11 @@ router.get('/me', async (req: AuthenticatedRequest, res: Response) => {
       await user.save();
     }
 
-    return res.status(200).json({ success: true, user });
+    const adminIdsStr = process.env.ADMIN_IDS || '';
+    const adminIds = adminIdsStr.split(',').map(id => id.trim());
+    const isAdmin = adminIds.includes(tgUser.telegramId);
+
+    return res.status(200).json({ success: true, user, isAdmin });
   } catch (error) {
     console.error('Error fetching profile:', error);
     return res.status(500).json({ error: 'Internal server error' });

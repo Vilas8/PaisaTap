@@ -7,13 +7,20 @@ const gig_model_1 = require("../models/gig.model");
 const withdrawal_model_1 = require("../models/withdrawal.model");
 const task_completion_model_1 = require("../models/task-completion.model");
 const referral_model_1 = require("../models/referral.model");
+const auth_middleware_1 = require("../middleware/auth.middleware");
 const router = (0, express_1.Router)();
-// Middleware to verify Admin Password
+// Apply general authentication middleware first
+router.use(auth_middleware_1.authMiddleware);
+// Middleware to verify Telegram ID matches process.env.ADMIN_IDS
 const adminAuth = (req, res, next) => {
-    const adminPassword = req.headers['x-admin-password'];
-    const expectedPassword = process.env.ADMIN_PASSWORD || 'PaisaTapAdmin123';
-    if (!adminPassword || adminPassword !== expectedPassword) {
-        return res.status(401).json({ error: 'Unauthorized: Invalid admin credentials' });
+    const user = req.user;
+    if (!user || !user.telegramId) {
+        return res.status(401).json({ error: 'Unauthorized: Missing credentials' });
+    }
+    const adminIdsStr = process.env.ADMIN_IDS || '';
+    const adminIds = adminIdsStr.split(',').map(id => id.trim());
+    if (!adminIds.includes(user.telegramId)) {
+        return res.status(403).json({ error: 'Forbidden: Access Denied' });
     }
     next();
 };

@@ -274,6 +274,48 @@ export const Home: React.FC = () => {
 
         <div className="tap-container">
           <div className="tap-button" onClick={handleTap}>
+            <svg width="150" height="150" viewBox="0 0 150 150" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ pointerEvents: 'none' }}>
+              {/* Outer shadow / 3D rim */}
+              <circle cx="75" cy="75" r="70" fill="url(#goldRimGradient)" stroke="url(#goldRimBorder)" strokeWidth="4" />
+              
+              {/* Inner bevel */}
+              <circle cx="75" cy="75" r="58" fill="url(#innerGreenGradient)" stroke="url(#goldInnerBorder)" strokeWidth="2" />
+              
+              {/* Indian Rupee Stylized Symbol */}
+              <path d="M52 48H92 M52 61H84 M67 48V78 M67 61C80 61 80 78 67 78 M67 78L88 102" stroke="url(#rupeeGoldGradient)" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+              
+              {/* Glowing reflections / Sparkles */}
+              <circle cx="75" cy="75" r="66" stroke="white" strokeOpacity="0.15" strokeWidth="2" strokeDasharray="40 180" style={{ transformOrigin: 'center', animation: 'rotateGlow 8s linear infinite' }} />
+              
+              {/* Gradients */}
+              <defs>
+                <linearGradient id="goldRimGradient" x1="0" y1="0" x2="150" y2="150" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#fbbf24" />
+                  <stop offset="30%" stopColor="#f59e0b" />
+                  <stop offset="70%" stopColor="#d97706" />
+                  <stop offset="100%" stopColor="#78350f" />
+                </linearGradient>
+                <linearGradient id="goldRimBorder" x1="150" y1="0" x2="0" y2="150" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#fef08a" />
+                  <stop offset="50%" stopColor="#f59e0b" />
+                  <stop offset="100%" stopColor="#451a03" />
+                </linearGradient>
+                <linearGradient id="innerGreenGradient" x1="25" y1="25" x2="125" y2="125" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#064e3b" />
+                  <stop offset="50%" stopColor="#022c22" />
+                  <stop offset="100%" stopColor="#064e3b" />
+                </linearGradient>
+                <linearGradient id="goldInnerBorder" x1="0" y1="0" x2="150" y2="150" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#d97706" />
+                  <stop offset="100%" stopColor="#f59e0b" />
+                </linearGradient>
+                <linearGradient id="rupeeGoldGradient" x1="0" y1="0" x2="40" y2="50" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#fef08a" />
+                  <stop offset="50%" stopColor="#fbbf24" />
+                  <stop offset="100%" stopColor="#d97706" />
+                </linearGradient>
+              </defs>
+            </svg>
             {floatingPoints.map((pt) => (
               <span
                 key={pt.id}

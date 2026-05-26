@@ -92,10 +92,15 @@ router.post('/telegram', authMiddleware, async (req: AuthenticatedRequest, res: 
       }
     }
 
+    const adminIdsStr = process.env.ADMIN_IDS || '';
+    const adminIds = adminIdsStr.split(',').map(id => id.trim());
+    const isAdmin = adminIds.includes(tgUser.telegramId);
+
     return res.status(200).json({
       success: true,
       user,
       isNewUser,
+      isAdmin,
     });
   } catch (error) {
     console.error('Error authenticating user:', error);

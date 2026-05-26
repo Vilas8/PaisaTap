@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTelegram } from '../contexts/TelegramContext';
 import { apiRequest } from '../utils/api';
 import { PlusCircle, ShieldAlert, Check, X, RefreshCw, DollarSign } from 'lucide-react';
+import { LoadingScreen } from '../components/LoadingScreen';
 
 interface Stats {
   totalUsers: number;
@@ -39,12 +40,11 @@ interface PendingTask {
 
 export const Admin: React.FC = () => {
   const { triggerHaptic } = useTelegram();
-  const [password, setPassword] = useState(localStorage.getItem('admin_pwd') || '');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [pendingWithdrawals, setPendingWithdrawals] = useState<PendingWithdrawal[]>([]);
   const [pendingTasks, setPendingTasks] = useState<PendingTask[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Form states for creating new task
   const [taskTitle, setTaskTitle] = useState('');
@@ -61,38 +61,26 @@ export const Admin: React.FC = () => {
   const [adjustType, setAdjustType] = useState<'add' | 'subtract' | 'set'>('add');
 
   const fetchAdminData = async () => {
-    if (!password) return;
     setLoading(true);
     try {
-      const data = await apiRequest('/api/admin/stats', {
-        headers: { 'x-admin-password': password }
-      });
+      const data = await apiRequest('/api/admin/stats');
       if (data.success) {
         setStats(data.stats);
         setPendingWithdrawals(data.pendingWithdrawals);
         setPendingTasks(data.pendingTasks);
-        setIsAuthenticated(true);
-        localStorage.setItem('admin_pwd', password);
+        setIsAuthorized(true);
       }
     } catch (e) {
       console.error(e);
-      alert('Failed to authenticate as admin. Invalid password.');
-      setIsAuthenticated(false);
+      setIsAuthorized(false);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (password) {
-      fetchAdminData();
-    }
-  }, []);
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
     fetchAdminData();
-  };
+  }, []);
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,7 +92,6 @@ export const Admin: React.FC = () => {
     try {
       const data = await apiRequest('/api/admin/tasks', {
         method: 'POST',
-        headers: { 'x-admin-password': password },
         body: {
           title: taskTitle,
           description: taskDesc,
@@ -140,7 +127,6 @@ export const Admin: React.FC = () => {
     try {
       const data = await apiRequest('/api/admin/adjust-balance', {
         method: 'POST',
-        headers: { 'x-admin-password': password },
         body: {
           telegramId: adjustId,
           amount: parseFloat(adjustAmount),
@@ -165,7 +151,6 @@ export const Admin: React.FC = () => {
     try {
       const data = await apiRequest(endpoint, {
         method: 'POST',
-        headers: { 'x-admin-password': password },
         body: { withdrawalId: id },
       });
 
@@ -183,7 +168,6 @@ export const Admin: React.FC = () => {
     try {
       const data = await apiRequest('/api/admin/task-completion/review', {
         method: 'POST',
-        headers: { 'x-admin-password': password },
         body: { completionId: id, status: reviewStatus },
       });
 
@@ -196,32 +180,21 @@ export const Admin: React.FC = () => {
     }
   };
 
-  if (!isAuthenticated) {
+  if (isAuthorized === null || (loading && isAuthorized !== false)) {
+    return <LoadingScreen />;
+  }
+
+  if (isAuthorized === false) {
     return (
       <div style={{ padding: '20px' }}>
         <div className="glass-card" style={{ marginTop: '40px', textAlign: 'center' }}>
           <div style={{ display: 'inline-flex', background: 'rgba(239, 68, 68, 0.1)', padding: '16px', borderRadius: '50%', color: 'var(--color-danger)', marginBottom: '16px' }}>
             <ShieldAlert size={36} />
           </div>
-          <h2>Admin Gatekeeper</h2>
+          <h2>403 - Access Denied</h2>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginBottom: '24px' }}>
-            This panel is password-protected. Enter the MVP Admin Password to gain administrative privileges.
+            You do not have administrative privileges. Only registered administrators can access this panel.
           </p>
-          <form onSubmit={handleLogin}>
-            <div className="form-group" style={{ textAlign: 'left' }}>
-              <label className="form-label">Password</label>
-              <input
-                type="password"
-                className="form-input"
-                placeholder="Enter password..."
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-            <button type="submit" className="btn" style={{ width: '100%' }} disabled={loading}>
-              {loading ? 'Authenticating...' : 'Access Admin Panel'}
-            </button>
-          </form>
         </div>
       </div>
     );

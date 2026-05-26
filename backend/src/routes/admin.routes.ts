@@ -5,17 +5,27 @@ import { Gig } from '../models/gig.model';
 import { Withdrawal } from '../models/withdrawal.model';
 import { TaskCompletion } from '../models/task-completion.model';
 import { Referral } from '../models/referral.model';
+import { authMiddleware, AuthenticatedRequest } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// Middleware to verify Admin Password
-const adminAuth = (req: Request, res: Response, next: NextFunction) => {
-  const adminPassword = req.headers['x-admin-password'] as string;
-  const expectedPassword = process.env.ADMIN_PASSWORD || 'PaisaTapAdmin123';
+// Apply general authentication middleware first
+router.use(authMiddleware);
 
-  if (!adminPassword || adminPassword !== expectedPassword) {
-    return res.status(401).json({ error: 'Unauthorized: Invalid admin credentials' });
+// Middleware to verify Telegram ID matches process.env.ADMIN_IDS
+const adminAuth = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  const user = req.user;
+  if (!user || !user.telegramId) {
+    return res.status(401).json({ error: 'Unauthorized: Missing credentials' });
   }
+
+  const adminIdsStr = process.env.ADMIN_IDS || '';
+  const adminIds = adminIdsStr.split(',').map(id => id.trim());
+
+  if (!adminIds.includes(user.telegramId)) {
+    return res.status(403).json({ error: 'Forbidden: Access Denied' });
+  }
+
   next();
 };
 

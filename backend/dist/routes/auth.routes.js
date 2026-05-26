@@ -81,10 +81,14 @@ router.post('/telegram', auth_middleware_1.authMiddleware, async (req, res) => {
                 await user.save();
             }
         }
+        const adminIdsStr = process.env.ADMIN_IDS || '';
+        const adminIds = adminIdsStr.split(',').map(id => id.trim());
+        const isAdmin = adminIds.includes(tgUser.telegramId);
         return res.status(200).json({
             success: true,
             user,
             isNewUser,
+            isAdmin,
         });
     }
     catch (error) {

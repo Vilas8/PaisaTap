@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { TelegramProvider, useTelegram } from './contexts/TelegramContext';
 import { apiRequest } from './utils/api';
+import { LoadingScreen } from './components/LoadingScreen';
 
 // Pages
 import { Home } from './pages/Home';
@@ -18,6 +19,7 @@ const AppContent: React.FC = () => {
   const { initData, isDevMode, triggerHaptic } = useTelegram();
   const [authComplete, setAuthComplete] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const location = useLocation();
 
   // Run Telegram onboarding and session handshakes on mount
@@ -51,6 +53,7 @@ const AppContent: React.FC = () => {
         if (data.success) {
           console.log('Session authentication verified.');
           setAuthError(null);
+          setIsAdmin(!!data.isAdmin);
         }
       })
       .catch((err) => {
@@ -101,12 +104,7 @@ const AppContent: React.FC = () => {
   }
 
   if (!authComplete) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0b0f19', color: '#fff', gap: '15px' }}>
-        <div className="user-avatar" style={{ width: '50px', height: '50px', fontSize: '20px' }}>P</div>
-        <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>Verifying credentials...</div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   return (
@@ -146,8 +144,8 @@ const AppContent: React.FC = () => {
           <WalletIcon />
           <span>Wallet</span>
         </NavLink>
-        {/* Support simple bypass access to Admin route on development */}
-        {isDevMode && (
+        {/* Render Admin option only for authorized admins */}
+        {isAdmin && (
           <NavLink to="/admin" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={() => triggerHaptic('light')}>
             <Settings />
             <span>Admin</span>
