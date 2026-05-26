@@ -34,10 +34,20 @@ export async function apiRequest(endpoint: string, options: RequestOptions = {})
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
-  const data = await response.json();
+  const contentType = response.headers.get('content-type');
+  let data: any = {};
+
+  if (contentType && contentType.includes('application/json')) {
+    data = await response.json();
+  } else {
+    const text = await response.text();
+    if (!response.ok) {
+      throw new Error(`HTTP Error ${response.status}: ${text.substring(0, 100) || response.statusText}`);
+    }
+  }
 
   if (!response.ok) {
-    throw new Error(data.error || 'Network response was not ok');
+    throw new Error(data.error || `HTTP Error ${response.status}`);
   }
 
   return data;
