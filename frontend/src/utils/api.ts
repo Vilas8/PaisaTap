@@ -5,7 +5,8 @@ const resolveApiUrl = (): string => {
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
       return trimmed;
     }
-    if (trimmed.length > 0) {
+    // Only use envUrl directly if it looks like a valid domain/IP (contains a dot)
+    if (trimmed.includes('.')) {
       return `https://${trimmed}`;
     }
   }
@@ -13,10 +14,8 @@ const resolveApiUrl = (): string => {
   // Resolve URL dynamically if running on Render static hosting
   const hostname = window.location.hostname;
   if (hostname.endsWith('.onrender.com')) {
-    const prefixIdx = hostname.indexOf('-frontend');
-    if (prefixIdx !== -1) {
-      const prefix = hostname.substring(0, prefixIdx);
-      return `https://${prefix}-backend.onrender.com`;
+    if (hostname.includes('-frontend')) {
+      return `https://${hostname.replace('-frontend', '-backend')}`;
     }
   }
   
