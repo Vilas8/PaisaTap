@@ -3,7 +3,22 @@ import { useTelegram } from '../contexts/TelegramContext';
 import { apiRequest } from '../utils/api';
 import { AdsgramService } from '../utils/adsgram';
 import confetti from 'canvas-confetti';
-import { Sparkles, Calendar, Zap, Award } from 'lucide-react';
+import { Sparkles, Calendar, Zap, Award, Settings as SettingsIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+const getLevelName = (lvl: number) => {
+  if (lvl >= 100) return 'Paisa Legend';
+  if (lvl >= 90) return 'Wealth Tycoon';
+  if (lvl >= 80) return 'Treasure Seeker';
+  if (lvl >= 70) return 'Fortune Finder';
+  if (lvl >= 60) return 'Diamond Hunter';
+  if (lvl >= 50) return 'Gold Miner';
+  if (lvl >= 40) return 'Silver Tapper';
+  if (lvl >= 30) return 'Wealth Builder';
+  if (lvl >= 20) return 'Cash Collector';
+  if (lvl >= 10) return 'Coin Gatherer';
+  return 'Paisa Novice';
+};
 
 interface UserData {
   telegramId: string;
@@ -25,6 +40,7 @@ interface FloatingPoint {
 }
 
 export const Home: React.FC = () => {
+  const navigate = useNavigate();
   const { user, triggerHaptic } = useTelegram();
   const [dbUser, setDbUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -282,27 +298,74 @@ export const Home: React.FC = () => {
     <div>
       {/* User Status Bar */}
       <div className="glass-card" style={{ marginTop: '20px', marginBottom: '10px', padding: '16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div className="user-avatar">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '10px' }}>
+          
+          {/* Profile Name & Icon linked to Profile Page */}
+          <div 
+            onClick={() => { triggerHaptic('light'); navigate('/profile'); }}
+            style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', flex: 1, minWidth: 0 }}
+          >
+            <div className="user-avatar" style={{ flexShrink: 0 }}>
               {user?.first_name?.charAt(0).toUpperCase() || 'P'}
             </div>
-            <div>
-              <div style={{ fontSize: '15px', fontWeight: '700' }}>
-                {user?.first_name || 'Earning Master'}
+            <div style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '15px', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {user?.first_name || 'Earning Master'}
+                </span>
+                <span className="user-level-badge" style={{ fontSize: '10px', padding: '1px 6px', height: 'fit-content' }}>
+                  Lvl {dbUser?.level || 1}
+                </span>
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                @{user?.username || 'paisatap_user'}
+              
+              <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ fontWeight: '500', color: 'var(--color-accent)' }}>{getLevelName(dbUser?.level || 1)}</span>
+                <span>•</span>
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>@{user?.username || 'paisatap_user'}</span>
+              </div>
+
+              {/* XP Level Bar */}
+              <div style={{ marginTop: '4px', width: '100%', maxWidth: '160px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'var(--color-text-secondary)', marginBottom: '2px' }}>
+                  <span>XP Progress</span>
+                  <span>{dbUser?.level && dbUser.level >= 100 ? 'MAX' : `${Math.floor((dbUser?.totalEarned || 0) % 1000)}/1000`}</span>
+                </div>
+                <div style={{ width: '100%', height: '4px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div 
+                    style={{ 
+                      width: `${dbUser?.level && dbUser.level >= 100 ? 100 : ((dbUser?.totalEarned || 0) % 1000) / 10}%`, 
+                      height: '100%', 
+                      background: 'var(--color-primary)', 
+                      borderRadius: '2px' 
+                    }}
+                  ></div>
+                </div>
               </div>
             </div>
           </div>
           
-          <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-            <span className="user-level-badge">Lvl {dbUser?.level}</span>
-            <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-              Bonus: +₹{Math.floor((dbUser?.level || 1) / 10)}/tap
-            </div>
+          {/* Settings Icon replaces Level Badge on Top Right */}
+          <div 
+            onClick={() => { triggerHaptic('light'); navigate('/settings'); }}
+            style={{ 
+              cursor: 'pointer', 
+              width: '36px',
+              height: '36px',
+              borderRadius: '50%', 
+              background: 'rgba(255, 255, 255, 0.05)', 
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              color: 'var(--color-text-secondary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s',
+              flexShrink: 0
+            }}
+            className="settings-btn"
+          >
+            <SettingsIcon size={18} />
           </div>
+
         </div>
       </div>
 
