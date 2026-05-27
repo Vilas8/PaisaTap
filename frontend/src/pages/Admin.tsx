@@ -447,7 +447,7 @@ export const Admin: React.FC = () => {
             {stats && (
               <div>
                 {renderProgressBar('Energy Refills (Refuel Cards)', stats.adBreakdown.energy_refill, stats.totalAdsWatched, '#fbbf24')}
-                {renderProgressBar('Tasks Watch-to-Earn (₹0.50 Tasks)', stats.adBreakdown.task_reward, stats.totalAdsWatched, '#10b981')}
+                {renderProgressBar('Tasks Watch-to-Earn (₹0.45 Tasks)', stats.adBreakdown.task_reward, stats.totalAdsWatched, '#10b981')}
                 {renderProgressBar('Payout Doubling (Winnings Multiply)', stats.adBreakdown.double_game, stats.totalAdsWatched, '#8b5cf6')}
                 {renderProgressBar('Free Game: Spin Wheel Plays', stats.adBreakdown.free_game_spin, stats.totalAdsWatched, '#3b82f6')}
                 {renderProgressBar('Free Game: Scratch Card Plays', stats.adBreakdown.free_game_scratch, stats.totalAdsWatched, '#ec4899')}

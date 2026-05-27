@@ -338,8 +338,8 @@ router.post('/ad-watch', async (req: AuthenticatedRequest, res: Response) => {
         }
       }
 
-      // Reward ₹0.50
-      const reward = 0.50;
+      // Reward ₹0.45 (adjusted from ₹0.50 since ad revenue is about ₹0.90 per session)
+      const reward = 0.45;
       user.balance = Math.round((user.balance + reward) * 100) / 100;
       user.totalEarned = Math.round((user.totalEarned + reward) * 100) / 100;
       user.lastAdTaskWatched = now;
@@ -361,7 +361,7 @@ router.post('/ad-watch', async (req: AuthenticatedRequest, res: Response) => {
         success: true,
         balance: user.balance,
         totalEarned: user.totalEarned,
-        message: 'Congratulations! You earned ₹0.50 for watching the ad.'
+        message: 'Congratulations! You earned ₹0.45 for watching the ad.'
       });
     }
   } catch (error) {

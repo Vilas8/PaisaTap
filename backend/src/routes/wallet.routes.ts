@@ -124,6 +124,29 @@ router.post('/withdraw', async (req: AuthenticatedRequest, res: Response) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Date & Session Age Restriction:
+    // 1. Withdrawals are only allowed on the 10th of each month (allow bypass in dev mode for testing)
+    const now = new Date();
+    const isDev = process.env.NODE_ENV === 'development';
+    if (now.getDate() !== 10 && !isDev) {
+      return res.status(400).json({ error: 'Withdrawals can only be initiated on the 10th of each month.' });
+    }
+
+    // 2. If the user joined within 15 days prior to the payout day (10th of the current month), they must complete a 30-day session
+    const payoutDay = new Date(now.getFullYear(), now.getMonth(), 10, 0, 0, 0, 0);
+    const fifteenDaysPrior = new Date(payoutDay.getTime() - 15 * 24 * 60 * 60 * 1000);
+    const registrationDate = new Date(user.createdAt);
+    
+    if (registrationDate >= fifteenDaysPrior && !isDev) {
+      const msDiff = now.getTime() - registrationDate.getTime();
+      const daysSinceJoined = msDiff / (24 * 60 * 60 * 1000);
+      if (daysSinceJoined < 30) {
+        return res.status(400).json({
+          error: 'Users who joined within 15 days of the payout day must complete a 30-day session on the app before withdrawing.'
+        });
+      }
+    }
+
     if (user.balance < amount) {
       return res.status(400).json({ error: 'Insufficient balance' });
     }

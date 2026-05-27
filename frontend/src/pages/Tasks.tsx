@@ -83,7 +83,7 @@ export const Tasks: React.FC = () => {
       // Trigger Ad (block_task_reward)
       await AdsgramService.showAd('block_task_reward');
 
-      // Call backend to credit ₹0.50
+      // Call backend to credit ₹0.45
       const data = await apiRequest('/api/user/ad-watch', {
         method: 'POST',
         body: { action: 'task_reward' },
@@ -92,7 +92,7 @@ export const Tasks: React.FC = () => {
       if (data.success) {
         triggerHaptic('success');
         setLastAdTaskWatched(new Date());
-        alert('Congratulations! You earned ₹0.50 for watching the ad.');
+        alert('Congratulations! You earned ₹0.45 for watching the ad.');
       }
     } catch (err: any) {
       console.error('Ad task error:', err);
@@ -179,7 +179,7 @@ export const Tasks: React.FC = () => {
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ color: '#10b981', fontWeight: '700', fontSize: '15px' }}>+₹0.50</div>
+            <div style={{ color: '#10b981', fontWeight: '700', fontSize: '15px' }}>+₹0.45</div>
           </div>
         </div>
 

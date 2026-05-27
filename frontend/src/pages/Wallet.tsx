@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTelegram } from '../contexts/TelegramContext';
 import { apiRequest } from '../utils/api';
-import { Send, ArrowDownLeft, Clock, CheckCircle2, XCircle, TrendingUp } from 'lucide-react';
+import { Send, ArrowDownLeft, Clock, CheckCircle2, XCircle, TrendingUp, ShieldAlert } from 'lucide-react';
 
 interface WithdrawalRecord {
   _id: string;
@@ -131,6 +131,16 @@ export const Wallet: React.FC = () => {
     <div style={{ padding: '0 20px 20px 20px' }}>
       <h1 className="page-title" style={{ marginTop: '20px' }}>Paisa Wallet</h1>
       <p className="page-subtitle">Withdraw your earned money directly to your UPI bank account.</p>
+
+      {/* Withdrawal Policy Banner */}
+      <div className="glass-card" style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', margin: '0 0 20px 0', padding: '14px', borderRadius: '16px' }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'start' }}>
+          <ShieldAlert size={18} style={{ color: 'var(--color-accent)', marginTop: '2px', flexShrink: 0 }} />
+          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', lineHeight: '1.4' }}>
+            <strong style={{ color: '#fff' }}>Withdrawal Schedule Notice:</strong> Cashouts can only be initiated on the <strong style={{ color: 'var(--color-accent)' }}>10th of each month</strong>. Additionally, users who joined within 15 days prior to the payout day must complete a 30-day session on the app before they can withdraw.
+          </div>
+        </div>
+      </div>
 
       {/* Balance Summary Card */}
       <div className="glass-card" style={{ margin: '0 0 20px 0', padding: '20px' }}>
