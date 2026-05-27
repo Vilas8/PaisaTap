@@ -150,9 +150,9 @@ export const Home: React.FC = () => {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    // Calculate value (including 5% level bonus)
-    const multiplier = 1 + (dbUser.level - 1) * 0.05;
-    const clickValue = (0.05 * multiplier).toFixed(2);
+    // Calculate value (₹0.05 base + ₹1 for every 10 levels)
+    const bonus = Math.floor(dbUser.level / 10);
+    const clickValue = (0.05 + bonus).toFixed(2);
 
     // Add floating point particle
     const newPoint: FloatingPoint = {
@@ -300,7 +300,7 @@ export const Home: React.FC = () => {
           <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
             <span className="user-level-badge">Lvl {dbUser?.level}</span>
             <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-              Bonus: +{((dbUser?.level || 1) - 1) * 5}%
+              Bonus: +₹{Math.floor((dbUser?.level || 1) / 10)}/tap
             </div>
           </div>
         </div>
@@ -325,7 +325,7 @@ export const Home: React.FC = () => {
       <div className="glass-card" style={{ marginTop: '0', marginBottom: '10px', textAlign: 'center' }}>
         <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '5px' }}>Tap to Earn Paisa</div>
         <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '10px' }}>
-          Consume energy to earn ₹{(0.05 * (1 + ((dbUser?.level || 1) - 1) * 0.05)).toFixed(2)} per tap
+          Consume energy to earn ₹{(0.05 + Math.floor((dbUser?.level || 1) / 10)).toFixed(2)} per tap
         </div>
 
         <div className="tap-container">

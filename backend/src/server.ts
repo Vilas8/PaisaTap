@@ -151,6 +151,20 @@ mongoose
   .connect(sanitizedUri)
   .then(async () => {
     console.log('Connected to MongoDB.');
+    
+    // Correct and cap levels for any users whose level exceeds 100
+    try {
+      const result = await mongoose.connection.collection('users').updateMany(
+        { level: { $gt: 100 } },
+        { $set: { level: 100 } }
+      );
+      if (result.modifiedCount > 0) {
+        console.log(`Successfully capped levels to 100 for ${result.modifiedCount} users.`);
+      }
+    } catch (err) {
+      console.error('Error running level cap DB migration:', err);
+    }
+
     await seedDefaultTasks();
     
     // Launch Telegram bot concurrently inside the same process

@@ -27,7 +27,10 @@ userSchema.pre('save', function (next) {
     if (this.isModified('totalEarned')) {
         // Level up formula: 1 + floor(totalEarned / 1000)
         // E.g., 0-999 earned = Lvl 1, 1000-1999 = Lvl 2, etc.
-        this.level = Math.max(1, 1 + Math.floor(this.totalEarned / 1000));
+        this.level = Math.min(100, Math.max(1, 1 + Math.floor(this.totalEarned / 1000)));
+    }
+    else if (this.level > 100) {
+        this.level = 100;
     }
     next();
 });

@@ -148,7 +148,7 @@ bot.start(async (ctx) => {
     const welcomeMsg = 
       `👋 *Welcome to PaisaTap, ${ctx.from.first_name}!*\n\n` +
       `Tap the screen, complete simple tasks, play mini games, and withdraw real cash directly to your *UPI* account! 💸\n\n` +
-      `🔥 *Multiplier Level:* ${user.level}\n` +
+      `🔥 *Current Level:* ${user.level} (Max 100)\n` +
       `⚡ *Energy:* ${user.energy}/${user.maxEnergy}\n` +
       `💰 *Current Balance:* ₹${user.balance.toFixed(2)}\n\n` +
       `Click the button below to launch the Mini App and start earning! 👇`;
@@ -178,7 +178,7 @@ bot.command('balance', async (ctx) => {
       `👤 *User:* ${ctx.from.first_name} (@${ctx.from.username || ''})\n` +
       `💰 *Wallet Balance:* ₹${user.balance.toFixed(2)}\n` +
       `📈 *Accumulated Earnings:* ₹${user.totalEarned.toFixed(2)}\n` +
-      `⭐️ *Current Level:* ${user.level} (Bonus: +${(user.level - 1) * 5}%)\n\n` +
+      `⭐️ *Current Level:* ${user.level} (Tap Bonus: +₹${Math.floor(user.level / 10)}/tap)\n\n` +
       `Use the Mini App to withdraw your funds!`;
 
     const inlineKeyboard = Markup.inlineKeyboard([

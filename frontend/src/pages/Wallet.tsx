@@ -153,7 +153,7 @@ export const Wallet: React.FC = () => {
             </div>
             <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
               <TrendingUp size={12} style={{ color: 'var(--color-primary)' }} />
-              Level {wallet?.level} multiplier active
+              Level {wallet?.level} tap bonus active (+₹{Math.floor((wallet?.level || 1) / 10)}/tap)
             </span>
           </div>
           <div style={{ background: 'rgba(34, 197, 94, 0.1)', padding: '16px', borderRadius: '16px', color: 'var(--color-primary)' }}>

@@ -11,9 +11,10 @@ import { Games } from './pages/Games';
 import { Refer } from './pages/Refer';
 import { Wallet } from './pages/Wallet';
 import { Admin } from './pages/Admin';
+import { Profile } from './pages/Profile';
 
 // Icons
-import { Home as HomeIcon, CheckSquare, Gamepad2, Users, Wallet as WalletIcon, Settings } from 'lucide-react';
+import { Home as HomeIcon, CheckSquare, Gamepad2, Users, Wallet as WalletIcon, Settings, User } from 'lucide-react';
 
 const AppContent: React.FC = () => {
   const { initData, isDevMode, triggerHaptic } = useTelegram();
@@ -117,6 +118,7 @@ const AppContent: React.FC = () => {
           <Route path="/games" element={<Games />} />
           <Route path="/refer" element={<Refer />} />
           <Route path="/wallet" element={<Wallet />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="*" element={<Navigate to="/home" replace />} />
         </Routes>
@@ -143,6 +145,10 @@ const AppContent: React.FC = () => {
         <NavLink to="/wallet" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={() => triggerHaptic('light')}>
           <WalletIcon />
           <span>Wallet</span>
+        </NavLink>
+        <NavLink to="/profile" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={() => triggerHaptic('light')}>
+          <User />
+          <span>Profile</span>
         </NavLink>
         {/* Render Admin option only for authorized admins */}
         {isAdmin && (

@@ -78,9 +78,9 @@ router.post('/tap', async (req, res) => {
         if (user.energy < energyRequired) {
             return res.status(400).json({ error: 'Not enough energy', currentEnergy: user.energy });
         }
-        // 3. Calculate earnings: ₹0.05 per tap (with a small bonus based on user level)
-        const multiplier = 1 + (user.level - 1) * 0.05; // 5% bonus per level
-        const earningPerTap = 0.05 * multiplier;
+        // 3. Calculate earnings: ₹0.05 base + ₹1 per 10 levels achieved
+        const bonus = Math.floor(user.level / 10);
+        const earningPerTap = 0.05 + bonus;
         const totalEarning = Math.round(taps * earningPerTap * 100) / 100;
         // 4. Update user
         user.energy -= energyRequired;
