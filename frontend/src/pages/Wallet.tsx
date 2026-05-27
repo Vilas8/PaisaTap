@@ -93,7 +93,7 @@ export const Wallet: React.FC = () => {
     triggerHaptic('heavy');
 
     try {
-      const data = await apiRequest('/api/withdraw', {
+      const data = await apiRequest('/api/wallet/withdraw', {
         method: 'POST',
         body: { amount: amtNum, upiId },
       });
