@@ -1,7 +1,13 @@
 const resolveApiUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_URL;
-  if (envUrl && (envUrl.startsWith('http://') || envUrl.startsWith('https://'))) {
-    return envUrl;
+  if (envUrl) {
+    const trimmed = envUrl.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    if (trimmed.length > 0) {
+      return `https://${trimmed}`;
+    }
   }
   
   // Resolve URL dynamically if running on Render static hosting
