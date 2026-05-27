@@ -37,6 +37,8 @@ export const Games: React.FC = () => {
     type: 'cash' | 'energy' | 'none';
     value: number;
     energyCost: number;
+    playWithAd?: boolean;
+    wasDoubled?: boolean;
   } | null>(null);
 
   // Scratch card status state
@@ -122,6 +124,7 @@ export const Games: React.FC = () => {
           type: chosenReward.type,
           value: chosenReward.value,
           energyCost: playWithAd ? 0 : 150,
+          playWithAd: playWithAd,
         });
         setShowRewardModal(true);
         setSpinning(false);
@@ -254,6 +257,7 @@ export const Games: React.FC = () => {
           type: 'cash',
           value: scratchReward.amount,
           energyCost: scratchPlayWithAd ? 0 : 100,
+          playWithAd: scratchPlayWithAd,
         });
         setShowRewardModal(true);
       }
@@ -318,7 +322,8 @@ export const Games: React.FC = () => {
       game: 'catcher',
       type: 'cash',
       value: rewardVal,
-      energyCost: isAdPlay ? 0 : 100
+      energyCost: isAdPlay ? 0 : 100,
+      playWithAd: isAdPlay,
     });
     setShowRewardModal(true);
   };
@@ -338,6 +343,8 @@ export const Games: React.FC = () => {
             rewardType: currentReward.type,
             rewardValue: currentReward.value,
             energyCost: currentReward.energyCost,
+            playWithAd: currentReward.playWithAd,
+            wasDoubled: false,
           },
         });
 
@@ -379,6 +386,8 @@ export const Games: React.FC = () => {
           rewardType: currentReward.type,
           rewardValue: currentReward.value * 2, // Doubled!
           energyCost: currentReward.energyCost,
+          playWithAd: currentReward.playWithAd,
+          wasDoubled: true,
         },
       });
 
